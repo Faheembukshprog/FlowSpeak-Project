@@ -1,0 +1,318 @@
+﻿=== REPOSITORY MAP GENERATED ON 04/21/2026 12:06:42 ===
+
+--- CURRENT AGENT TASKS ---
+# Current Goal
+
+The immediate objective is to build out the API Endpoints (Controllers) interacting with the Entity Framework Data Core so that it can autonomously accept and map intents parsed by the Groq/Ollama AI over from n8n.
+
+# Priority Tasks
+
+* Initialize project structure (COMPLETED)
+* Configure environment (COMPLETED)
+* Build base components (COMPLETED)
+  * Database Schema Implementation (COMPLETED)
+  * AI Command Logs implementation (COMPLETED)
+  * Seed Data Initialization (COMPLETED)
+  * Create `ProductsController` (Handled via generic ActionController and ProductService)
+  * Create `ActionController` (COMPLETED)
+* Implement core features (PENDING)
+  * Connect Webhook endpoints to AI inference inside n8n.
+* Add testing (PENDING)
+  * Write xUnit tests to validate business logic isolation.
+* Prepare deployment (PENDING)
+  * Finalize `docker-compose.yml` to spin up n8n and SQL together.
+
+# Task Format
+
+**Task Name**: Implement Product Controller
+**Description**: Generate REST endpoints for querying and inserting Products so the AI has specific bridges to execute inventory lookups.
+**Input files**: `src/FlowSpeak.Api/Models/Product.cs`, `ApplicationDbContext.cs`
+**Output files**: `src/FlowSpeak.Api/Controllers/ProductsController.cs`
+**Expected Result**: A functioning HTTP GET/POST interface exposing Product data.
+
+# Rules for Agents
+
+* Always read `PROJECT_CONTEXT.md` first to understand architectural intent.
+* Follow folder structure rules (keep API code inside `src/FlowSpeak.Api`).
+* Validate dependencies before assuming they are installed.
+* Write clean modular code following standard C# style guidelines.
+* Do NOT run raw SQL queries; inject the `ApplicationDbContext` and use Entity Framework.
+
+--- DIRECTORY STRUCTURE ---
+Folder PATH listing for volume New Volume
+Volume serial number is 68F0-FF58
+E:\PR2-202408B\APTECH-VISION\FLOWSPEAK-PROJECT
+|   .env.example
+|   README.md
+|   
++---.context
+|   |   AGENT_TASKS.md
+|   |   Generate-ContextMap.ps1
+|   |   PROJECT_CONTEXT.md
+|   |   SETUP_CHECKLIST.md
+|   |   
+|   \---graphify_out
+|           repo_map.txt
+|           
++---database
+|       schema.sql
+|       
++---docs
++---n8n-workflows
+\---src
+    \---FlowSpeak.Api
+        |   appsettings.Development.json
+        |   appsettings.json
+        |   FlowSpeak.Api.csproj
+        |   FlowSpeak.Api.http
+        |   Program.cs
+        |   
+        +---bin
+        |   \---Debug
+        |       \---net10.0
+        |           |   appsettings.Development.json
+        |           |   appsettings.json
+        |           |   Azure.Core.dll
+        |           |   Azure.Identity.dll
+        |           |   FlowSpeak.Api.deps.json
+        |           |   FlowSpeak.Api.dll
+        |           |   FlowSpeak.Api.exe
+        |           |   FlowSpeak.Api.pdb
+        |           |   FlowSpeak.Api.runtimeconfig.json
+        |           |   FlowSpeak.Api.staticwebassets.endpoints.json
+        |           |   Humanizer.dll
+        |           |   Microsoft.AspNetCore.OpenApi.dll
+        |           |   Microsoft.Bcl.AsyncInterfaces.dll
+        |           |   Microsoft.Bcl.Cryptography.dll
+        |           |   Microsoft.Build.Framework.dll
+        |           |   Microsoft.CodeAnalysis.CSharp.dll
+        |           |   Microsoft.CodeAnalysis.CSharp.Workspaces.dll
+        |           |   Microsoft.CodeAnalysis.dll
+        |           |   Microsoft.CodeAnalysis.ExternalAccess.RazorCompiler.dll
+        |           |   Microsoft.CodeAnalysis.Workspaces.dll
+        |           |   Microsoft.CodeAnalysis.Workspaces.MSBuild.dll
+        |           |   Microsoft.Data.SqlClient.dll
+        |           |   Microsoft.EntityFrameworkCore.Abstractions.dll
+        |           |   Microsoft.EntityFrameworkCore.Design.dll
+        |           |   Microsoft.EntityFrameworkCore.dll
+        |           |   Microsoft.EntityFrameworkCore.Relational.dll
+        |           |   Microsoft.EntityFrameworkCore.SqlServer.dll
+        |           |   Microsoft.Extensions.DependencyModel.dll
+        |           |   Microsoft.Identity.Client.dll
+        |           |   Microsoft.Identity.Client.Extensions.Msal.dll
+        |           |   Microsoft.IdentityModel.Abstractions.dll
+        |           |   Microsoft.IdentityModel.JsonWebTokens.dll
+        |           |   Microsoft.IdentityModel.Logging.dll
+        |           |   Microsoft.IdentityModel.Protocols.dll
+        |           |   Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
+        |           |   Microsoft.IdentityModel.Tokens.dll
+        |           |   Microsoft.OpenApi.dll
+        |           |   Microsoft.SqlServer.Server.dll
+        |           |   Microsoft.VisualStudio.SolutionPersistence.dll
+        |           |   Mono.TextTemplating.dll
+        |           |   Newtonsoft.Json.dll
+        |           |   System.ClientModel.dll
+        |           |   System.CodeDom.dll
+        |           |   System.Composition.AttributedModel.dll
+        |           |   System.Composition.Convention.dll
+        |           |   System.Composition.Hosting.dll
+        |           |   System.Composition.Runtime.dll
+        |           |   System.Composition.TypedParts.dll
+        |           |   System.Configuration.ConfigurationManager.dll
+        |           |   System.IdentityModel.Tokens.Jwt.dll
+        |           |   System.Memory.Data.dll
+        |           |   System.Security.Cryptography.ProtectedData.dll
+        |           |   
+        |           +---cs
+        |           |       Microsoft.CodeAnalysis.CSharp.resources.dll
+        |           |       Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+        |           |       Microsoft.CodeAnalysis.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.resources.dll
+        |           |       Microsoft.Data.SqlClient.resources.dll
+        |           |       
+        |           +---de
+        |           |       Microsoft.CodeAnalysis.CSharp.resources.dll
+        |           |       Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+        |           |       Microsoft.CodeAnalysis.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.resources.dll
+        |           |       Microsoft.Data.SqlClient.resources.dll
+        |           |       
+        |           +---es
+        |           |       Microsoft.CodeAnalysis.CSharp.resources.dll
+        |           |       Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+        |           |       Microsoft.CodeAnalysis.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.resources.dll
+        |           |       Microsoft.Data.SqlClient.resources.dll
+        |           |       
+        |           +---fr
+        |           |       Microsoft.CodeAnalysis.CSharp.resources.dll
+        |           |       Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+        |           |       Microsoft.CodeAnalysis.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.resources.dll
+        |           |       Microsoft.Data.SqlClient.resources.dll
+        |           |       
+        |           +---it
+        |           |       Microsoft.CodeAnalysis.CSharp.resources.dll
+        |           |       Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+        |           |       Microsoft.CodeAnalysis.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.resources.dll
+        |           |       Microsoft.Data.SqlClient.resources.dll
+        |           |       
+        |           +---ja
+        |           |       Microsoft.CodeAnalysis.CSharp.resources.dll
+        |           |       Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+        |           |       Microsoft.CodeAnalysis.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.resources.dll
+        |           |       Microsoft.Data.SqlClient.resources.dll
+        |           |       
+        |           +---ko
+        |           |       Microsoft.CodeAnalysis.CSharp.resources.dll
+        |           |       Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+        |           |       Microsoft.CodeAnalysis.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.resources.dll
+        |           |       Microsoft.Data.SqlClient.resources.dll
+        |           |       
+        |           +---pl
+        |           |       Microsoft.CodeAnalysis.CSharp.resources.dll
+        |           |       Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+        |           |       Microsoft.CodeAnalysis.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.resources.dll
+        |           |       Microsoft.Data.SqlClient.resources.dll
+        |           |       
+        |           +---pt-BR
+        |           |       Microsoft.CodeAnalysis.CSharp.resources.dll
+        |           |       Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+        |           |       Microsoft.CodeAnalysis.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.resources.dll
+        |           |       Microsoft.Data.SqlClient.resources.dll
+        |           |       
+        |           +---ru
+        |           |       Microsoft.CodeAnalysis.CSharp.resources.dll
+        |           |       Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+        |           |       Microsoft.CodeAnalysis.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.resources.dll
+        |           |       Microsoft.Data.SqlClient.resources.dll
+        |           |       
+        |           +---runtimes
+        |           |   +---unix
+        |           |   |   \---lib
+        |           |   |       \---net9.0
+        |           |   |               Microsoft.Data.SqlClient.dll
+        |           |   |               
+        |           |   +---win
+        |           |   |   \---lib
+        |           |   |       \---net9.0
+        |           |   |               Microsoft.Data.SqlClient.dll
+        |           |   |               
+        |           |   +---win-arm64
+        |           |   |   \---native
+        |           |   |           Microsoft.Data.SqlClient.SNI.dll
+        |           |   |           
+        |           |   +---win-x64
+        |           |   |   \---native
+        |           |   |           Microsoft.Data.SqlClient.SNI.dll
+        |           |   |           
+        |           |   \---win-x86
+        |           |       \---native
+        |           |               Microsoft.Data.SqlClient.SNI.dll
+        |           |               
+        |           +---tr
+        |           |       Microsoft.CodeAnalysis.CSharp.resources.dll
+        |           |       Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+        |           |       Microsoft.CodeAnalysis.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.resources.dll
+        |           |       Microsoft.Data.SqlClient.resources.dll
+        |           |       
+        |           +---zh-Hans
+        |           |       Microsoft.CodeAnalysis.CSharp.resources.dll
+        |           |       Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+        |           |       Microsoft.CodeAnalysis.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+        |           |       Microsoft.CodeAnalysis.Workspaces.resources.dll
+        |           |       Microsoft.Data.SqlClient.resources.dll
+        |           |       
+        |           \---zh-Hant
+        |                   Microsoft.CodeAnalysis.CSharp.resources.dll
+        |                   Microsoft.CodeAnalysis.CSharp.Workspaces.resources.dll
+        |                   Microsoft.CodeAnalysis.resources.dll
+        |                   Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+        |                   Microsoft.CodeAnalysis.Workspaces.resources.dll
+        |                   Microsoft.Data.SqlClient.resources.dll
+        |                   
+        +---Controllers
+        |       ActionController.cs
+        |       
+        +---Data
+        |       ApplicationDbContext.cs
+        |       DbInitializer.cs
+        |       
+        +---Models
+        |   |   AiCommandLog.cs
+        |   |   AppUser.cs
+        |   |   BaseEntity.cs
+        |   |   LookupStatus.cs
+        |   |   Product.cs
+        |   |   SalesLog.cs
+        |   |   
+        |   \---DTOs
+        |           ActionResponse.cs
+        |           IntentRequest.cs
+        |           
+        +---obj
+        |   |   FlowSpeak.Api.csproj.nuget.dgspec.json
+        |   |   FlowSpeak.Api.csproj.nuget.g.props
+        |   |   FlowSpeak.Api.csproj.nuget.g.targets
+        |   |   project.assets.json
+        |   |   project.nuget.cache
+        |   |   
+        |   \---Debug
+        |       \---net10.0
+        |           |   .NETCoreApp,Version=v10.0.AssemblyAttributes.cs
+        |           |   apphost.exe
+        |           |   FlowSpea.EF77A67F.Up2Date
+        |           |   FlowSpeak.Api.AssemblyInfo.cs
+        |           |   FlowSpeak.Api.AssemblyInfoInputs.cache
+        |           |   FlowSpeak.Api.assets.cache
+        |           |   FlowSpeak.Api.csproj.AssemblyReference.cache
+        |           |   FlowSpeak.Api.csproj.CoreCompileInputs.cache
+        |           |   FlowSpeak.Api.csproj.FileListAbsolute.txt
+        |           |   FlowSpeak.Api.dll
+        |           |   FlowSpeak.Api.GeneratedMSBuildEditorConfig.editorconfig
+        |           |   FlowSpeak.Api.genruntimeconfig.cache
+        |           |   FlowSpeak.Api.GlobalUsings.g.cs
+        |           |   FlowSpeak.Api.MvcApplicationPartsAssemblyInfo.cache
+        |           |   FlowSpeak.Api.MvcApplicationPartsAssemblyInfo.cs
+        |           |   FlowSpeak.Api.pdb
+        |           |   rjsmcshtml.dswa.cache.json
+        |           |   rjsmrazor.dswa.cache.json
+        |           |   rpswa.dswa.cache.json
+        |           |   staticwebassets.build.endpoints.json
+        |           |   staticwebassets.build.json
+        |           |   staticwebassets.build.json.cache
+        |           |   swae.build.ex.cache
+        |           |   
+        |           +---ref
+        |           |       FlowSpeak.Api.dll
+        |           |       
+        |           +---refint
+        |           |       FlowSpeak.Api.dll
+        |           |       
+        |           \---staticwebassets
+        +---Properties
+        |       launchSettings.json
+        |       
+        \---Services
+                IProductService.cs
+                ProductService.cs
+                

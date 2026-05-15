@@ -1,0 +1,6 @@
+@FlowSpeak.Api_HostAddress = http://localhost:5070
+
+GET {{FlowSpeak.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
