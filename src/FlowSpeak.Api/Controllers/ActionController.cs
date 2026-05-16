@@ -26,10 +26,17 @@ namespace FlowSpeak.Api.Controllers
         {
             try
             {
-                var response = await _dispatcher.DispatchAsync(request);
-                var wasSuccessful = response?.Success ?? false;
+                var response = await _dispatcher.DispatchAsync(request)
+                    ?? new ActionResponse
+                    {
+                        Success = false,
+                        Message = "No response generated",
+                        Data = null
+                    };
 
-                await LogIntentAsync(request, response, wasSuccessful, wasSuccessful ? null : response?.Message);
+                var wasSuccessful = response.Success;
+
+                await LogIntentAsync(request, response, wasSuccessful, wasSuccessful ? null : response.Message);
 
                 if (wasSuccessful)
                     return Ok(response);

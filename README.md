@@ -54,10 +54,11 @@ This repository contains the backend execution spine. Intent extraction is handl
 - Production telemetry backend is not implemented; only an abstraction and console sink are present.
 - The repository does not include an API endpoint for long-running status polling.
 
-## Quick Run
+## Local Setup
 
 1. Configure the database connection using `DB_CONNECTION_STRING` or `appsettings.json`.
-2. Run from `src/FlowSpeak.Api`:
+2. Open the `src/FlowSpeak.Api` folder.
+3. Run:
 
 ```bash
 dotnet restore
@@ -65,9 +66,67 @@ dotnet build
 dotnet run
 ```
 
-3. Run unit tests:
+The project runs on `http://localhost:5070` by default.
+
+## Database Setup
+
+- A local SQL Server instance is required.
+- EF Core migrations are applied automatically on startup.
+- The connection string is loaded from `DB_CONNECTION_STRING` or `appsettings.json`.
+
+## How to Test API (PowerShell)
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:5070/api/action/process" `
+  -Method POST `
+  -Headers @{ "Content-Type" = "application/json" } `
+  -Body '{"intent":"CHECK_STOCK","entity":"Dell XPS 15 Laptop","parameters":{}}'
+```
+
+## Expected Response
+
+A successful response returns JSON with:
+
+- `success`: true or false
+- `message`: a descriptive result message
+- `data`: the returned product data or `null`
+
+Example success response:
+
+```json
+{
+  "success": true,
+  "message": "Found 1 product(s) matching 'Dell XPS 15 Laptop'.",
+  "data": [
+    {
+      "name": "Dell XPS 15 Laptop",
+      "sku": "..."
+    }
+  ]
+}
+```
+
+Example failure response:
+
+```json
+{
+  "success": false,
+  "message": "Sorry, I couldn't find that item in the inventory.",
+  "data": null
+}
+```
+
+## Git Workflow (Push Changes)
 
 ```bash
-cd tests/FlowSpeak.Tests
-dotnet test
+git status
+git add .
+git commit -m "docs: update setup and testing guide"
+git push origin main
 ```
+
+## Troubleshooting
+
+- `400 Bad Request` → verify payload keys: `intent`, `entity`, and `parameters`.
+- Empty result → check database seed data and confirm matching product rows.
+- Port issues → verify `src/FlowSpeak.Api/Properties/launchSettings.json` or the configured application URL.

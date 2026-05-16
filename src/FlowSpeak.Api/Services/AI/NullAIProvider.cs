@@ -27,7 +27,7 @@ namespace FlowSpeak.Api.Services.AI
             var req = new IntentRequest
             {
                 Intent = "UNKNOWN",
-                Entity = null,
+                Entity = string.Empty,
                 Parameters = new Dictionary<string, string>()
             };
 

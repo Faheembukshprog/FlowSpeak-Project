@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FlowSpeak.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9b02b026d3a201d8ff5e56547243abbc3311c8a5")]
 [assembly: System.Reflection.AssemblyProductAttribute("FlowSpeak.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FlowSpeak.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

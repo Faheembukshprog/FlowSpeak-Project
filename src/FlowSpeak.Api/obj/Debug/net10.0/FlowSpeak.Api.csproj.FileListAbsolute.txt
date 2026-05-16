@@ -141,6 +141,7 @@ E:\PR2-202408B\Aptech-Vision\FlowSpeak-Project\src\FlowSpeak.Api\obj\Debug\net10
 E:\PR2-202408B\Aptech-Vision\FlowSpeak-Project\src\FlowSpeak.Api\obj\Debug\net10.0\FlowSpeak.Api.csproj.CoreCompileInputs.cache
 E:\PR2-202408B\Aptech-Vision\FlowSpeak-Project\src\FlowSpeak.Api\obj\Debug\net10.0\FlowSpeak.Api.MvcApplicationPartsAssemblyInfo.cs
 E:\PR2-202408B\Aptech-Vision\FlowSpeak-Project\src\FlowSpeak.Api\obj\Debug\net10.0\FlowSpeak.Api.MvcApplicationPartsAssemblyInfo.cache
+E:\PR2-202408B\Aptech-Vision\FlowSpeak-Project\src\FlowSpeak.Api\obj\Debug\net10.0\FlowSpeak.Api.sourcelink.json
 E:\PR2-202408B\Aptech-Vision\FlowSpeak-Project\src\FlowSpeak.Api\obj\Debug\net10.0\rjimswa.dswa.cache.json
 E:\PR2-202408B\Aptech-Vision\FlowSpeak-Project\src\FlowSpeak.Api\obj\Debug\net10.0\rjsmrazor.dswa.cache.json
 E:\PR2-202408B\Aptech-Vision\FlowSpeak-Project\src\FlowSpeak.Api\obj\Debug\net10.0\rjsmcshtml.dswa.cache.json
