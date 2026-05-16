@@ -1,0 +1,32 @@
+# Build outputs
+bin/
+obj/
+out/
+
+# .NET
+*.user
+*.suo
+*.cache
+*.log
+*.db
+*.sqlite
+
+# Environment
+.env
+.env.local
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Node (if any tooling exists)
+node_modules/
+
+# Test results
+TestResults/
+coverage/
+
+# n8n exports temporary
+*.backup
