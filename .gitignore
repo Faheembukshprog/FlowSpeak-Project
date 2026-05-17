@@ -30,3 +30,15 @@ coverage/
 
 # n8n exports temporary
 *.backup
+# Frontend dependencies & build outputs
+flowspeak-ui/node_modules/
+flowspeak-ui/dist/
+flowspeak-ui/.env
+
+# Backend binaries and user-specific configurations
+bin/
+obj/
+.vs/
+_ReSharper*/
+*.user
+*.suo
