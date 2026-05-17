@@ -1,132 +1,207 @@
-# FlowSpeak — Developer Source of Truth
+# FlowSpeak — Deterministic Intent Execution Engine
 
-## Current System Architecture
+An AI-augmented enterprise application separating non-deterministic language parsing from safe, transactional backend workflows. Built using an ASP.NET Core API, SQL Server database integration, and a Vite + React modular UI dashboard.
 
-FlowSpeak implements a deterministic execution pipeline:
+## 📐 Completed Full-Stack Architecture
 
-AI (Intent Extraction) → ASP.NET Core API → SQL Server → Response
+- **Frontend (`/flowspeak-ui`):** React 18 single-page application built on Vite with Tailwind CSS v4 and PostCSS styling engines. Features a 3-tab layout containing an interactive conversational AI space, a chronological ledger tracking client actions, and a live metrics telemetry board.
+- **Backend (`/src/FlowSpeak.Api`):** High-throughput C# REST API deploying explicit Cross-Origin Resource Sharing (CORS) policies to interact natively with frontend origins via port `5070`.
+- **Database Layer (`AI_CommandLogs`):** Relational SQL tracking data structures mapping client intents, parsed parameters, payload records, and exact database state transitions.
 
-This repository contains the backend execution spine. Intent extraction is handled by an external orchestrator and is not implemented as an active LLM integration in the codebase.
+---
 
-## Component Status
+## 🛠️ Integrated Endpoints & Controllers
 
-- `src/FlowSpeak.Api/Program.cs` — DONE
-- `src/FlowSpeak.Api/Controllers/ActionController.cs` — DONE
-- `src/FlowSpeak.Api/Services/Intent/IIntentDispatcher.cs` — DONE
-- `src/FlowSpeak.Api/Services/Intent/IntentDispatcher.cs` — DONE
-- `src/FlowSpeak.Api/Services/Intent/CheckStockHandler.cs` — DONE
-- `src/FlowSpeak.Api/Services/ProductService.cs` — DONE
-- `src/FlowSpeak.Api/Data/ApplicationDbContext.cs` — DONE
-- `src/FlowSpeak.Api/Models/AiCommandLog.cs` — DONE
-- `src/FlowSpeak.Api/Services/AI/IAIProvider.cs` — DONE (NullAIProvider stub)
-- `src/FlowSpeak.Api/Services/AI/NullAIProvider.cs` — DONE (no active LLM integration)
-- `src/FlowSpeak.Api/Services/Telemetry/ITelemetryService.cs` — DONE
-- `src/FlowSpeak.Api/Services/Telemetry/NullTelemetryService.cs` — DONE (development sink)
-- `docs/n8n_to_api_contract.md` — DONE
-- `n8n-workflows/example_post_process.json` — DONE
-- `tests/FlowSpeak.Tests/IntentDispatcherTests.cs` — DONE
+### 1. Action Routing (`ActionController.cs`)
 
-## Implemented Components
+- **Route:** `POST /api/action/process`
+- **Objective:** Consumes user queries mapped by AI client-side tokens and executes strict, deterministic data checks.
 
-- `ActionController` — receives `POST /api/action/process`, forwards incoming intent payloads, and logs audit records.
-- `IntentDispatcher` — routes authenticated intents to registered handlers.
-- `CheckStockHandler` — handles the `CHECK_STOCK` intent.
-- `ProductService` — performs deterministic product lookup in SQL.
-- `ApplicationDbContext` — EF Core database context with soft-delete filters and audit indexes.
-- `AiCommandLog` — append-only audit log for intent requests and responses.
-- `IAIProvider` / `NullAIProvider` — abstraction for AI extraction; current code uses a stub implementation.
-- `ITelemetryService` / `NullTelemetryService` — telemetry abstraction and a console sink for local development.
-- `n8n` contract docs and example workflow — describe external orchestration boundaries.
+### 2. Telemetry Streams (`TelemetryController.cs`)
 
-## Execution Flow
+- **Route:** `GET /api/telemetry/logs`
+- **Objective:** Formulates real-time analytics by capturing the top 50 rows in `ApplicationDbContext` ordered by `ProcessedAt DESC` directly to the telemetry visualizer.
 
-1. External orchestration extracts an `IntentRequest` from user input.
-2. The orchestrator POSTs the structured JSON payload to `/api/action/process`.
-3. `ActionController` receives the request and invokes `IntentDispatcher`.
-4. `IntentDispatcher` selects the matching intent handler.
-5. The active handler performs SQL retrieval via `ProductService`.
-6. The API logs the request and response to `AiCommandLog` and returns the `ActionResponse`.
+---
 
-## Limitations / Missing Systems
+## 🦾 Ingested GitHub Copilot Capabilities
 
-- `src/FlowSpeak.Api/Services/AI/NullAIProvider.cs` is a stub; no active LLM integration exists in the repository.
-- External orchestration via n8n is not embedded in this repo; only example artifacts and contract documentation are provided.
-- Production telemetry backend is not implemented; only an abstraction and console sink are present.
-- The repository does not include an API endpoint for long-running status polling.
+This repository integrates engineering skills and structural blueprints from `awesome-copilot`:
 
-## Local Setup
+- **Contextual Anchoring:** All workspace routines utilize explicit `@workspace` targeting across domain contexts (`Program.cs`, `App.jsx`, database contexts).
+- **ESM-Vite Guardrails:** Configurations are hardwired for ESM modular boundaries, avoiding breaking runtime anomalies across OS file structures.
 
-1. Configure the database connection using `DB_CONNECTION_STRING` or `appsettings.json`.
-2. Open the `src/FlowSpeak.Api` folder.
-3. Run:
+---
+
+## 🚀 Active Runtime Execution Guide
+
+### Step 1: Fire up the Data Engine (Backend API)
 
 ```bash
-dotnet restore
-dotnet build
-dotnet run
+cd E:\PR2-202408B\Aptech-Vision\FlowSpeak-Project
+dotnet run --project src/FlowSpeak.Api/FlowSpeak.Api.csproj
 ```
 
-The project runs on `http://localhost:5070` by default.
+### Step 2: Run the Frontend Dashboard
 
-## Database Setup
+```bash
+cd E:\PR2-202408B\Aptech-Vision\FlowSpeak-Project\flowspeak-ui
+npm install
+npm run dev
+```
 
-- A local SQL Server instance is required.
-- EF Core migrations are applied automatically on startup.
-- The connection string is loaded from `DB_CONNECTION_STRING` or `appsettings.json`.
+The frontend should be available at `http://localhost:5173` and consume the backend API at `http://localhost:5070`.
 
-## How to Test API (PowerShell)
+---
+
+## ✅ End-to-End Verification Guide
+
+### 1. Verify API Health
+
+```bash
+curl http://localhost:5070/api/health
+```
+
+Expected response:
+
+```json
+{
+  "status": "FlowSpeak API is running",
+  "time": "..."
+}
+```
+
+### 2. Send a Valid CHECK_STOCK Intent
 
 ```powershell
-Invoke-RestMethod -Uri "http://localhost:5070/api/action/process" `
+$response = Invoke-RestMethod -Uri "http://localhost:5070/api/action/process" `
   -Method POST `
   -Headers @{ "Content-Type" = "application/json" } `
-  -Body '{"intent":"CHECK_STOCK","entity":"Dell XPS 15 Laptop","parameters":{}}'
+  -Body '{"intent":"CHECK_STOCK","entity":"Widget","parameters":{}}'
+
+$response | ConvertTo-Json
 ```
 
-## Expected Response
-
-A successful response returns JSON with:
-
-- `success`: true or false
-- `message`: a descriptive result message
-- `data`: the returned product data or `null`
-
-Example success response:
+Expected success response:
 
 ```json
 {
   "success": true,
-  "message": "Found 1 product(s) matching 'Dell XPS 15 Laptop'.",
+  "message": "Found 1 product(s) matching 'Widget'.",
   "data": [
     {
-      "name": "Dell XPS 15 Laptop",
-      "sku": "..."
+      "id": "...",
+      "name": "Widget",
+      "sku": "W-001"
     }
   ]
 }
 ```
 
-Example failure response:
+### 3. Validate Telemetry Endpoint
+
+```bash
+curl http://localhost:5070/api/telemetry/logs
+```
+
+Expected behavior:
+
+- Returns the top 50 rows from `AI_CommandLogs`
+- Ordered by `ProcessedAt DESC`
+- Includes the most recent CHECK_STOCK request
+
+### 4. Confirm SQL Audit Logging
+
+Use SQL Server Management Studio or sqlcmd:
+
+```sql
+USE FlowSpeakDB;
+SELECT TOP 10
+  Id,
+  Intent,
+  Entity,
+  WasSuccessful,
+  ErrorMessage,
+  ProcessedAt
+FROM AI_CommandLogs
+ORDER BY ProcessedAt DESC;
+```
+
+Expected verification:
+
+- Most recent log rows exist
+- `Intent` values include `CHECK_STOCK` and any unknown intents
+- `WasSuccessful` is `1` for success and `0` for failures
+
+### 5. Negative Test: Unknown Intent
+
+```powershell
+$response = Invoke-RestMethod -Uri "http://localhost:5070/api/action/process" `
+  -Method POST `
+  -Headers @{ "Content-Type" = "application/json" } `
+  -Body '{"intent":"UNKNOWN_INTENT","entity":"test","parameters":{}}'
+
+$response | ConvertTo-Json
+```
+
+Expected failure response:
 
 ```json
 {
   "success": false,
-  "message": "Sorry, I couldn't find that item in the inventory.",
+  "message": "Unknown intent: UNKNOWN_INTENT",
   "data": null
 }
 ```
 
-## Git Workflow (Push Changes)
+Confirm the audit log reflects the failure with `WasSuccessful = 0` and `ErrorMessage` containing `Unknown intent`.
+
+---
+
+## 🧪 Integration Tests & Validation Rules
+
+This README documents the repository-level validation necessary for the full stack:
+
+- Frontend UI connects successfully to `http://localhost:5173`
+- Backend API responds to `POST /api/action/process`
+- `GET /api/telemetry/logs` returns the most recent 50 telemetry rows
+- SQL Server contains seeded `Products` and audit-ready `AI_CommandLogs`
+- CORS is configured for `http://localhost:5173`
+
+### Recommended Local Test Sequence
+
+1. Start backend: `dotnet run --project src/FlowSpeak.Api/FlowSpeak.Api.csproj`
+2. Start frontend: `npm run dev` inside `flowspeak-ui`
+3. Open `http://localhost:5173`
+4. Submit a `CHECK_STOCK` action via the UI or API endpoint
+5. Confirm telemetry list updates and new audit rows appear in SQL
+
+---
+
+## 🧩 GitHub Copilot Workflow Notes
+
+The repository has been shaped with Copilot-driven scaffolding in mind:
+
+- explicit file targeting with `@workspace`
+- consistent code and docs alignment across backend, frontend, and database domains
+- repeatable runtime commands for local development and validation
+
+---
+
+## 🚧 Troubleshooting
+
+- `400 Bad Request` → confirm JSON keys: `intent`, `entity`, and `parameters`
+- No frontend connectivity → verify `http://localhost:5173` and backend port `5070`
+- SQL seed missing → confirm `DB_CONNECTION_STRING` or `appsettings.json` points to a local SQL Server instance
+- `CORS` failures → ensure backend has `AllowLocalhost5173` policy enabled in `Program.cs`
+
+---
+
+## Git Workflow
 
 ```bash
 git status
-git add .
-git commit -m "docs: update setup and testing guide"
+git add README.md
+git commit -m "docs: restore full README with architecture and verification guide"
 git push origin main
 ```
-
-## Troubleshooting
-
-- `400 Bad Request` → verify payload keys: `intent`, `entity`, and `parameters`.
-- Empty result → check database seed data and confirm matching product rows.
-- Port issues → verify `src/FlowSpeak.Api/Properties/launchSettings.json` or the configured application URL.

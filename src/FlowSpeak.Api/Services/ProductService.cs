@@ -18,11 +18,13 @@ namespace FlowSpeak.Api.Services
             if (string.IsNullOrWhiteSpace(searchTerm))
                 return new List<Product>();
 
+            var lowerSearchTerm = searchTerm.ToLower();
+
             // Global query filters in ApplicationDbContext automatically ensure we only query IsDeleted == false.
             return await _context.Products
-                .Where(p => p.Name.Contains(searchTerm) || 
-                            p.SKU.Contains(searchTerm) || 
-                            (p.SearchVector != null && p.SearchVector.Contains(searchTerm)))
+                .Where(p => p.Name.ToLower().Contains(lowerSearchTerm) || 
+                            p.SKU.ToLower().Contains(lowerSearchTerm) || 
+                            (p.SearchVector != null && p.SearchVector.ToLower().Contains(lowerSearchTerm)))
                 .ToListAsync();
         }
     }

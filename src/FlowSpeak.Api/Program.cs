@@ -12,6 +12,17 @@ var connectionString = builder.Configuration["DB_CONNECTION_STRING"]
 builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
 
 builder.Services.AddControllers();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowLocalhost5173", policy =>
+    {
+        policy.WithOrigins("http://localhost:5173")
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 builder.Services.AddScoped<FlowSpeak.Api.Services.IProductService, FlowSpeak.Api.Services.ProductService>();
 // Intent system registrations
 builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentDispatcher, FlowSpeak.Api.Services.Intent.IntentDispatcher>();
@@ -37,6 +48,8 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseRouting();
+app.UseCors("AllowLocalhost5173");
 app.UseHttpsRedirection();
 
 app.MapControllers();

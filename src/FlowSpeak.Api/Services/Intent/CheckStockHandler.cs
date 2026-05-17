@@ -24,24 +24,51 @@ namespace FlowSpeak.Api.Services.Intent
                 searchTerm = request.Parameters["productName"];
             }
 
-            var products = await _productService.GetProductBySearchAsync(searchTerm);
+            if (string.IsNullOrWhiteSpace(searchTerm))
+            {
+                return new ActionResponse
+                {
+                    Success = false,
+                    Message = "No product name or entity specified in the request.",
+                    Data = null
+                };
+            }
 
-            if (products != null && products.Any())
+            // Perform case-insensitive database lookup
+            var products = await _productService.GetProductBySearchAsync(searchTerm);
+            
+            if (products == null || !products.Any())
+            {
+                return new ActionResponse
+                {
+                    Success = false,
+                    Message = $"Could not locate a product matching '{searchTerm}' in our current inventory.",
+                    Data = null
+                };
+            }
+
+            // Get the first matching product
+            var matchedProduct = products.First();
+
+            // Check stock status
+            if (matchedProduct.StockQuantity > 0)
             {
                 return new ActionResponse
                 {
                     Success = true,
-                    Message = $"Found {products.Count} product(s) matching '{searchTerm}'.",
-                    Data = products
+                    Message = $"Yes, we have {matchedProduct.StockQuantity} units of {matchedProduct.Name} available (SKU: {matchedProduct.SKU}).",
+                    Data = new[] { matchedProduct }
                 };
             }
-
-            return new ActionResponse
+            else
             {
-                Success = false,
-                Message = "Sorry, I couldn't find that item in the inventory.",
-                Data = null
-            };
+                return new ActionResponse
+                {
+                    Success = false,
+                    Message = $"Sorry, {matchedProduct.Name} is currently out of stock.",
+                    Data = null
+                };
+            }
         }
     }
 }

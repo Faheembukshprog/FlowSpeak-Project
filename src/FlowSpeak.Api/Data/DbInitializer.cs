@@ -74,57 +74,48 @@ namespace FlowSpeak.Api.Data
             {
                 new()
                 {
-                    Name          = "Dell XPS 15 Laptop",
-                    SKU           = "DELL-XPS15-001",
+                    Name          = "Dell XPS 15",
+                    SKU           = "DELL-XPS15",
                     Price         = 249999.00m,
                     StockQuantity = 12,
-                    SearchVector  = "dell xps laptop 15 ultrabook",
+                    SearchVector  = "dell xps 15 laptop ultrabook premium",
                     Metadata      = """{"brand":"Dell","category":"Laptop","warranty_years":2,"color":"Silver"}"""
                 },
                 new()
                 {
-                    Name          = "HP EliteBook 840 G10",
-                    SKU           = "HP-ELT840-G10",
-                    Price         = 189000.00m,
-                    StockQuantity = 8,
-                    SearchVector  = "hp elitebook 840 business laptop",
-                    Metadata      = """{"brand":"HP","category":"Laptop","warranty_years":3,"color":"Silver"}"""
-                },
-                new()
-                {
-                    Name          = "Logitech MX Master 3S Mouse",
-                    SKU           = "LGT-MXMS-3S",
-                    Price         = 18500.00m,
-                    StockQuantity = 34,
-                    SearchVector  = "logitech mx master mouse wireless",
-                    Metadata      = """{"brand":"Logitech","category":"Peripheral","connectivity":"Bluetooth/USB","color":"Graphite"}"""
-                },
-                new()
-                {
-                    Name          = "Samsung 27\" QHD Monitor",
-                    SKU           = "SAM-MON27-QHD",
-                    Price         = 67000.00m,
+                    Name          = "MacBook Pro 16",
+                    SKU           = "MAC-MP16",
+                    Price         = 349999.00m,
                     StockQuantity = 5,
-                    SearchVector  = "samsung monitor 27 inch qhd display",
-                    Metadata      = """{"brand":"Samsung","category":"Monitor","resolution":"2560x1440","panel":"IPS","refresh_hz":165}"""
+                    SearchVector  = "macbook pro 16 inch apple laptop m-series",
+                    Metadata      = """{"brand":"Apple","category":"Laptop","warranty_years":1,"color":"Space Gray"}"""
                 },
                 new()
                 {
-                    Name          = "Keychron K2 Mechanical Keyboard",
-                    SKU           = "KEY-K2-RGB",
-                    Price         = 14500.00m,
-                    StockQuantity = 20,
-                    SearchVector  = "keychron k2 keyboard mechanical rgb wireless",
-                    Metadata      = """{"brand":"Keychron","category":"Peripheral","switch_type":"Red","layout":"75%","backlight":"RGB"}"""
-                },
-                new()
-                {
-                    Name          = "WD 1TB External SSD",
-                    SKU           = "WD-SSD1TB-EXT",
-                    Price         = 27000.00m,
+                    Name          = "ThinkPad X1 Carbon",
+                    SKU           = "LENO-X1C",
+                    Price         = 189000.00m,
                     StockQuantity = 0,
-                    SearchVector  = "western digital wd ssd external 1tb portable",
-                    Metadata      = """{"brand":"WD","category":"Storage","capacity_gb":1000,"interface":"USB-C","read_mbps":1050}"""
+                    SearchVector  = "lenovo thinkpad x1 carbon business laptop",
+                    Metadata      = """{"brand":"Lenovo","category":"Laptop","warranty_years":3,"color":"Black"}"""
+                },
+                new()
+                {
+                    Name          = "HP Spectre x360",
+                    SKU           = "HP-SPEC360",
+                    Price         = 219999.00m,
+                    StockQuantity = 22,
+                    SearchVector  = "hp spectre x360 convertible laptop touchscreen",
+                    Metadata      = """{"brand":"HP","category":"Laptop","warranty_years":2,"color":"Nightfall Black"}"""
+                },
+                new()
+                {
+                    Name          = "FlowSpeak Master Widget",
+                    SKU           = "FLOW-WDGT",
+                    Price         = 99.99m,
+                    StockQuantity = 150,
+                    SearchVector  = "flowspeak widget master tool utility",
+                    Metadata      = """{"brand":"FlowSpeak","category":"Accessory","warranty_years":1,"color":"White"}"""
                 },
             };
 
