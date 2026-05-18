@@ -1,120 +1,50 @@
-# FlowSpeak - Project Context
+# FlowSpeak - Master Project Context & Agent Directives
 
-## Project Overview
+**CRITICAL AGENT DIRECTIVE:** This file is the absolute source of truth for the FlowSpeak project. Any AI agent, developer, or automated pipeline modifying this repository MUST adhere strictly to the boundaries, rules, and vision outlined here. Do NOT hallucinate architectures, and do NOT deviate from these technical constraints.
 
-* **Project Name**: FlowSpeak
-* **Purpose and goals**: Create an autonomous AI-driven orchestration system bridging human voice and enterprise data. It allows users to interact with complex databases using natural language audio, eliminating information lag and UI friction.
-* **Problem being solved**: Non-technical stakeholders often struggle to pull data or enter information into complex enterprise systems (like ERPs/CRMs). Traditional UIs can be slow on the go.
-* **Target users**: Warehouse Managers, Sales Representatives, and Executives who need hands-free, rapid data access.
-* **Core features list**:
-  * Voice-to-Intent translation using OpenAI-compatible APIs (Groq/Ollama).
-  * Autonomous querying via an ASP.NET Core bridge.
-  * Push Notifications for instant feedback.
-  * Report generation (PDF/Excel) triggered by voice.
-  * Security via Caller ID verification mapping.
+## 1. The End Product Vision (The "Holy Grail" of Enterprise AI)
+FlowSpeak is not a chatbot; it is an **AI-Native Command Center** designed to completely replace clunky, traditional enterprise software (like complex inventory management dashboards or CRMs). 
 
-## Tech Stack
+### The User Journey
+*   **The Problem:** Traditional UIs are slow, require heavy training, and force users to click through 15 menus just to check stock or create an order.
+*   **The Solution:** A user types or speaks a natural command (e.g., *"Do we have enough Dell XPS 15s to fulfill an order of 40 units for Aptech?"*). FlowSpeak translates this into an actionable database execution in milliseconds.
+*   **The UI Experience (Non-Negotiable):** The interface is a sleek, dark-mode "Heads-Up Display" divided into three fluid sections:
+    1.  **The Command Chat (Center):** The focal point. Elegant, fast, and highly legible.
+    2.  **Live Context Cards (Right Panel):** Dynamic, visual cards that show active records (e.g., product specs, stock levels) based on what the AI is currently discussing.
+    3.  **The Live Ledger (Left Panel):** A running, transparent log of exact database transactions.
 
-* **Programming languages**: C# (Backend), JavaScript (n8n Workflows), SQL
-* **Frameworks**: ASP.NET Core Web API, Entity Framework Core (Code-First)
-* **Libraries**: Microsoft.EntityFrameworkCore.SqlServer
-* **Tools**: n8n (Automation Engine), Groq Cloud / Local Ollama (AI APIs), Postman, Ngrok
-* **Runtime requirements**: .NET 10.0 SDK, Node.js (for n8n), SQL Server (e.g. SQLEXPRESS)
+## 2. Architecture & Tech Stack
+The architecture is based on a strict separation of concerns: **AI interprets intent; SQL provides truth.**
 
-## Architecture Overview
+*   **Frontend (The Interface):** React 18, Vite, Tailwind CSS v4.
+    *   *Rule:* Visual weight and functional clarity must be maintained with absolute, uncompromising elegance.
+*   **Backend (The Execution Layer):** C# ASP.NET Core (.NET 8.0+).
+    *   *Rule:* The API must act as an iron-clad bouncer. It receives strict JSON intents (`intent`, `entity`, `parameters`) from the NLP layer and handles all execution.
+*   **Database (The Truth):** Microsoft SQL Server via Entity Framework Core.
+    *   *Rule:* All interactions must pass through EF Core. 
 
-* **High-level system design**: Orchestrator-driven microservice pattern.
-* **Component relationships**: 
-  * A messaging platform (WhatsApp/Telegram) captures audio and sends it to n8n via Webhook.
-  * n8n orchestrates the workflow, passing audio to Groq/Ollama for transcription and intent extraction.
-  * n8n forwards the extracted structured JSON intent to the ASP.NET Core API.
-  * The API uses EF Core to execute logic against the SQL Server database.
-* **Data flow description**: 
-  `User Audio` -> `n8n Webhook` -> `AI API (Groq)` -> `n8n` -> `ASP.NET API` -> `SQL Server` -> `n8n` -> `User Response`
+## 3. Strict Zero-Hallucination Agent Rules
+To ensure the system never hallucinates a fake product, loses data, or crashes, all AI agents modifying this code must obey the following:
 
-## Folder Structure
+*   **Rule A: No Raw SQL.** Agents are strictly forbidden from writing unparameterized SQL. Use `EF.Functions.Like` for fuzzy matching, and always use strongly-typed LINQ queries.
+*   **Rule B: Iron-Clad Soft Deletion.** Ghost data is strictly forbidden. All database queries must explicitly check `IsDeleted == false`.
+*   **Rule C: Telemetry Projection.** Never return raw database entities to the frontend. Always map responses to lean DTOs (e.g., `.Select(p => new Product {...})`) to prevent system IDs, metadata, and creation timestamps from leaking to the browser.
+*   **Rule D: SPA Memory Management.** For the React frontend, always enforce array bounding (e.g., `.slice(-100)`) on rapidly updating states like Chat Logs or Transaction Ledgers. Do not allow infinite DOM expansion.
+*   **Rule E: Defensive UI Rendering.** Handle all network failures gracefully via React error boundaries or `catch` blocks. The UI must never show a blank white screen of death.
+
+## 4. Repository Structure
 
 ```text
 /
-├── database/            # Contains raw SQL schema files and initial seed data references
-├── docs/                # Architecture diagrams, API specs, and extended documentation
-├── n8n-workflows/       # Exported .json files for n8n automation workflows
-├── src/                 # Backend source code
-│   └── FlowSpeak.Api/   # ASP.NET Core Web API project (Controllers, Models, Data contexts)
-├── .env.example         # Environment variables template
-├── AGENT_TASKS.md       # AI agent state tracking and task assignment
-├── PROJECT_CONTEXT.md   # This file
-├── README.md            # Standard developer landing page
-└── SETUP_CHECKLIST.md   # Setup verification steps
+├── flowspeak-ui/        # React / Vite / Tailwind v4 Single-Page Application
+├── src/
+│   └── FlowSpeak.Api/   # C# ASP.NET Core Web API (Controllers, Services, EF Contexts)
+├── .context/            # Project context, setup checklists, and master rules
+├── .env.example         # Template for required environment variables
+└── README.md            # Quick-start setup instructions
 ```
 
-## Environment Setup
-
-### Required software
-* .NET 10.0 SDK
-* SQL Server (Express or standard)
-* n8n (via npm or Docker)
-* Ngrok (to expose local n8n webhooks)
-
-### Installation steps
-1. Clone the repository.
-2. Navigate to `src/FlowSpeak.Api` and run `dotnet restore`.
-3. Set up your local SQL Server instance.
-4. Copy `.env.example` to `.env` and fill in API keys.
-
-### Dependency setup
-* Execute `dotnet tool install --global dotnet-ef` if not already installed.
-* Apply EF Migrations: `dotnet ef database update`
-
-### Environment variables (.env.example reference)
-See the Configuration Templates section below.
-
-### Run commands
-* API: `dotnet run --project src/FlowSpeak.Api`
-* n8n: `npx n8n`
-* Ngrok: `ngrok http 5678`
-
-## Configuration Templates
-
-### .env.example
-```env
-# AI Configuration (Free tier for development)
-# Uses Groq for OpenAI compatibility at zero cost
-GROQ_API_KEY=your_free_groq_key_here
-
-# Database Configuration
-DB_CONNECTION_STRING="Server=localhost\\SQLEXPRESS;Database=FlowSpeakDB;Trusted_Connection=True;TrustServerCertificate=True;"
-
-# n8n / Messaging Configuration
-N8N_ENCRYPTION_KEY=random_string
-WEBHOOK_URL=https://your-ngrok-url.io
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
-```
-
-## Development Workflow
-
-* **Coding standards**: Standard C# naming conventions (PascalCase for classes/methods, camelCase for variables). Avoid raw SQL; heavily utilize Entity Framework Core.
-* **Naming conventions**: API endpoints must follow RESTful plural noun structures (e.g., `/api/products`).
-* **Git workflow**: Feature branch workflow. Main branches are protected.
-
-## Testing Instructions
-
-* **Testing framework**: xUnit, Moq
-* **How to run tests**: `dotnet test` from the root directory.
-* **Example test file structure**: Located in `/tests/FlowSpeak.Tests`, mirroring the structure of `src/`.
-
-## Deployment Preparation
-
-* **Build commands**: `dotnet publish -c Release -o ./publish`
-* **Production setup notes**: Database connection strings must be rotated and securely injected. n8n must run securely behind a reverse proxy (e.g. Nginx).
-
-## Assumptions
-
-* The project aims to utilize a scalable, zero-cost AI model format (Groq API/Ollama) to keep student costs low while ensuring commercial scalability.
-* The API will handle all business logic autonomously based on the AI's parsed JSON intents.
-* n8n will handle standard error routing and fallback messages if the AI fails.
-
-## Future Expansion Notes
-
-* Add generic OAuth authentication for web dashboards.
-* Containerize the entire stack into a `docker-compose.yml` for unified 1-click deployments.
+## 5. Deployment Expectations
+*   The API endpoint must always be abstracted behind `import.meta.env.VITE_API_ENDPOINT` in the frontend.
+*   Hardcoded `localhost` strings in production UI components are forbidden.
+*   All environment variables (`*.env`) must be aggressively blocked by `.gitignore`.

@@ -1,0 +1,14 @@
+# FlowSpeak - Global Agent Directives
+
+You are acting as an elite Full-Stack Architect working on "FlowSpeak". 
+FlowSpeak is an AI-Native Command Center that replaces legacy enterprise software with a conversational interface.
+
+## Mandatory Architectural Boundaries
+1. **NO RAW SQL:** You are strictly forbidden from writing unparameterized SQL. Always use Entity Framework Core with strongly-typed LINQ queries. Use `EF.Functions.Like()` for fuzzy matching.
+2. **NO GHOST DATA:** All database queries MUST explicitly filter out soft-deleted records (`IsDeleted == false`).
+3. **TELEMETRY PROJECTIONS ONLY:** Never return raw database models to the frontend. Always use `.Select()` to map responses to lean DTOs, stripping sensitive system IDs and metadata.
+4. **SPA MEMORY MANAGEMENT:** When writing React state updates for rapidly expanding arrays (like Chat Logs or Transactions), you MUST apply `.slice(-100)` or similar bounds to prevent infinite DOM expansion and browser crashes.
+5. **UI ELEGANCE IS NON-NEGOTIABLE:** The React frontend (Vite + Tailwind v4) is a "Heads-Up Display". Any UI components you build must prioritize dark-mode elegance, visual weight, and functional clarity.
+6. **ENVIRONMENT ABSTRACTION:** API endpoints must never be hardcoded strings (e.g., `http://localhost:5070`). Always use `import.meta.env.VITE_API_ENDPOINT`.
+
+Before writing any feature code, consult `.context/PROJECT_CONTEXT.md` for the full End Product Vision.
