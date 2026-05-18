@@ -18,14 +18,31 @@ namespace FlowSpeak.Api.Services
             if (string.IsNullOrWhiteSpace(searchTerm))
                 return new List<Product>();
 
-            var lowerSearchTerm = searchTerm.ToLower();
+            // 1. INPUT CLEANING: Strip out accidental single or double quotes, and escape SQL wildcards
+            var cleanSearchTerm = searchTerm.Replace("'", "").Replace("\"", "").Trim();
+            var escapedTerm = cleanSearchTerm.Replace("[", "[[]").Replace("%", "[%]").Replace("_", "[_]");
+            
+            // 2. BACKEND SAFETY: Use parameterized wildcards for SQL LIKE comparison
+            var wildcardSearch = $"%{escapedTerm}%";
 
-            // Global query filters in ApplicationDbContext automatically ensure we only query IsDeleted == false.
-            return await _context.Products
-                .Where(p => p.Name.ToLower().Contains(lowerSearchTerm) || 
-                            p.SKU.ToLower().Contains(lowerSearchTerm) || 
-                            (p.SearchVector != null && p.SearchVector.ToLower().Contains(lowerSearchTerm)))
+            // 3. EDGE CASES & TELEMETRY OUTPUT: 
+            // Explicitly verify IsDeleted == false (0) and project only the required telemetry fields
+            var products = await _context.Products
+                .Where(p => p.IsDeleted == false && 
+                            (EF.Functions.Like(p.Name, wildcardSearch) || 
+                             EF.Functions.Like(p.SKU, wildcardSearch) || 
+                             (p.SearchVector != null && EF.Functions.Like(p.SearchVector, wildcardSearch))))
                 .ToListAsync();
+
+            // Map into a clean model structure for the frontend JSON telemetry
+            return products.Select(p => new Product
+            {
+                // Only mapping necessary fields as requested
+                Name = p.Name,
+                SKU = p.SKU,
+                Price = p.Price,
+                StockQuantity = p.StockQuantity
+            }).ToList();
         }
     }
 }

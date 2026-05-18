@@ -157,3 +157,4 @@ E:\PR2-202408B\Aptech-Vision\FlowSpeak-Project\src\FlowSpeak.Api\obj\Debug\net10
 E:\PR2-202408B\Aptech-Vision\FlowSpeak-Project\src\FlowSpeak.Api\obj\Debug\net10.0\FlowSpeak.Api.pdb
 E:\PR2-202408B\Aptech-Vision\FlowSpeak-Project\src\FlowSpeak.Api\obj\Debug\net10.0\FlowSpeak.Api.genruntimeconfig.cache
 E:\PR2-202408B\Aptech-Vision\FlowSpeak-Project\src\FlowSpeak.Api\obj\Debug\net10.0\ref\FlowSpeak.Api.dll
+E:\PR2-202408B\Aptech-Vision\FlowSpeak-Project\src\FlowSpeak.Api\bin\Debug\net10.0\appsettings.example.json
