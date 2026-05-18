@@ -1,44 +1,59 @@
-# Build outputs
+# ==========================================
+# ULTIMATE AGNOSTIC .GITIGNORE
+# ==========================================
+
+# 1. Environment Security (Aggressive Global Block)
+*.env
+*.env.*
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
+appsettings.json
+appsettings.Development.json
+!appsettings.example.json
+!.env.example
+
+# 2. .NET Build Artifacts & User Caches
 bin/
 obj/
 out/
-
-# .NET
-*.user
-*.suo
-*.cache
-*.log
-*.db
-*.sqlite
-
-# Environment
-.env
-.env.local
-
-# IDE / OS
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
-
-# Node (if any tooling exists)
-node_modules/
-
-# Test results
-TestResults/
-coverage/
-
-# n8n exports temporary
-*.backup
-# Frontend dependencies & build outputs
-flowspeak-ui/node_modules/
-flowspeak-ui/dist/
-flowspeak-ui/.env
-
-# Backend binaries and user-specific configurations
-bin/
-obj/
 .vs/
-_ReSharper*/
 *.user
 *.suo
+*.userosscache
+*.sln.docstates
+TestResults/
+*.pdb
+*.cache
+
+# 3. Node.js & React Build Artifacts
+node_modules/
+dist/
+build/
+.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# 4. OS-Specific System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+ehthumbs_vista.db
+[Tt]humbs.db
+
+# 5. IDEs and Editors
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*~
+*.swx
