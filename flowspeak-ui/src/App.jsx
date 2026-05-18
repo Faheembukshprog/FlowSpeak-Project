@@ -24,8 +24,8 @@ const INTENT_BADGE = {
   UNKNOWN: 'bg-amber-100 text-amber-800',
 };
 
-// Matches backend launchSettings.json (applicationUrl http://localhost:5070)
-const API_ENDPOINT = 'http://localhost:5070/api/action/process';
+// Matches backend launchSettings.json, but securely injected via Vite environments
+const API_ENDPOINT = import.meta.env.VITE_API_ENDPOINT || 'http://localhost:5070/api/action/process';
 
 function uid(prefix = '') {
   return prefix + Math.random().toString(36).slice(2, 10);
@@ -91,7 +91,7 @@ export default function App() {
 
     const parsed = parseIntentSimple(text);
     const userMsg = { id: uid('user-'), role: 'user', text, ts: new Date().toISOString() };
-    setChat((current) => [...current, userMsg]);
+    setChat((current) => [...current, userMsg].slice(-100));
     setInput('');
     setLoading(true);
     setError('');
@@ -116,7 +116,7 @@ export default function App() {
         status,
         ts: new Date().toISOString(),
       };
-      setChat((current) => [...current, sysMsg]);
+      setChat((current) => [...current, sysMsg].slice(-100));
 
       const txn = {
         id: uid('txn-'),
