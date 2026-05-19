@@ -1,0 +1,37 @@
+[
+  {
+    "id": "TC001",
+    "title": "postapiauthregistershouldregisternewuser",
+    "description": "Test user registration endpoint with valid username, password, fullName, and optional role to ensure successful user creation and appropriate success response."
+  },
+  {
+    "id": "TC002",
+    "title": "postapiauthloginshouldauthenticateuserandsetcookies",
+    "description": "Test user login endpoint with valid credentials to verify authentication success, user profile return, and HttpOnly authentication cookies are set."
+  },
+  {
+    "id": "TC003",
+    "title": "postapiauthrefreshshouldrefreshaccesstoken",
+    "description": "Test token refresh endpoint with a valid refresh token cookie to confirm new access tokens are issued and success response is returned."
+  },
+  {
+    "id": "TC004",
+    "title": "postapiauthlogoutshouldclearcookiesandrevoke",
+    "description": "Test logout endpoint to ensure it clears authentication cookies, revokes refresh tokens, and returns a successful logout confirmation."
+  },
+  {
+    "id": "TC005",
+    "title": "postapiactioninterpretshouldextractintentandexecuteaction",
+    "description": "Test AI intent interpretation endpoint with valid authenticated natural language text input to verify correct intent extraction, action dispatch, and successful response with intent data."
+  },
+  {
+    "id": "TC006",
+    "title": "postapiactionprocessshouldprocesspreparsedintent",
+    "description": "Test legacy action processing endpoint with authenticated pre-parsed intent JSON to ensure correct processing and successful response with action result."
+  },
+  {
+    "id": "TC007",
+    "title": "getapitelemetrylogsshouldreturnrecentaicommandlogs",
+    "description": "Test telemetry logs endpoint to verify it returns the 50 most recent AI command execution logs ordered by processing time, including handling empty log scenarios."
+  }
+]

@@ -1,0 +1,40 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Standard to msysgit
+*.doc	 diff=astextplain
+*.DOC	 diff=astextplain
+*.docx diff=astextplain
+*.DOCX diff=astextplain
+*.dot  diff=astextplain
+*.DOT  diff=astextplain
+*.pdf  diff=astextplain
+*.PDF	 diff=astextplain
+*.rtf	 diff=astextplain
+*.RTF	 diff=astextplain
+
+# C# and .NET specific
+*.cs text diff=csharp
+*.sln text eol=crlf
+*.csproj text eol=crlf
+*.vbproj text eol=crlf
+*.fsproj text eol=crlf
+*.dbproj text eol=crlf
+
+# Web specific
+*.html text
+*.css text
+*.js text
+*.jsx text
+*.ts text
+*.tsx text
+*.json text
+*.md text
+
+# Image files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg text

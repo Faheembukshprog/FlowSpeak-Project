@@ -1,59 +1,80 @@
-# ==========================================
-# ULTIMATE AGNOSTIC .GITIGNORE
-# ==========================================
+# Prerequisites
+*.d
 
-# 1. Environment Security (Aggressive Global Block)
-*.env
-*.env.*
-*.env.local
-*.env.development.local
-*.env.test.local
-*.env.production.local
-appsettings.json
-appsettings.Development.json
-!appsettings.example.json
-!.env.example
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
 
-# 2. .NET Build Artifacts & User Caches
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# .NET / C#
 bin/
 obj/
-out/
-.vs/
 *.user
-*.suo
 *.userosscache
 *.sln.docstates
-TestResults/
-*.pdb
-*.cache
+*.suo
+*.userprefs
+*.DS_Store
+.vs/
+.vscode/
+*.log
+*.sqlite
+*.mdf
+*.ldf
 
-# 3. Node.js & React Build Artifacts
+# Node.js / React
 node_modules/
 dist/
 build/
-.eslintcache
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.npm/
 
-# 4. OS-Specific System Files
+# IDEs and Editors
+.idea/
+*.swp
+*~
+
+# TestSprite
+testsprite_tests/tmp/
+
+# OS generated files
 .DS_Store
 .DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
 ehthumbs.db
-ehthumbs_vista.db
-[Tt]humbs.db
-
-# 5. IDEs and Editors
-.vscode/
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-.idea/
-*.swp
-*~
-*.swx
+Thumbs.db

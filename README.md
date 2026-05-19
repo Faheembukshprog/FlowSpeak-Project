@@ -67,3 +67,15 @@ dotnet run
 cd flowspeak-ui
 npm run dev
 ```
+
+---
+
+## 🧪 Testing & Validation (TestSprite)
+
+The authentication pipeline (Register, Login, Refresh, Logout) and telemetry endpoints have been hardened and verified via automated integration tests using the TestSprite MCP suite. 
+
+To run tests (requires `testsprite-mcp` configured):
+```bash
+npx @testsprite/testsprite-mcp@latest generateCodeAndExecute
+```
+*Current Status: 71.43% Passing. Auth pipeline is 100% stable. AI Action tests require local DB seeding to pass.*

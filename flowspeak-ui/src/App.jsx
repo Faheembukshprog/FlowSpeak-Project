@@ -1,31 +1,23 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  MessageSquare,
-  LayoutGrid,
-  ShieldAlert,
   Send,
-  Clock,
-  Database,
-  RefreshCcw,
-  CheckCircle2,
-  Cpu,
+  Activity,
+  Package,
   Zap,
+  CheckCircle2,
+  AlertCircle,
+  Database,
+  Cpu,
+  Tag,
+  LogOut,
+  Lock
 } from 'lucide-react';
+import { useTelemetry } from './contexts/TelemetryContext.jsx';
 
-const TABS = [
-  { id: 'chat', label: 'Demo Chat', icon: MessageSquare },
-  { id: 'transactions', label: 'Transactions', icon: LayoutGrid },
-  { id: 'admin', label: 'Admin', icon: ShieldAlert },
-];
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5070';
 
-const INTENT_BADGE = {
-  SUCCESS: 'bg-emerald-100 text-emerald-800',
-  FAILED: 'bg-red-100 text-red-800',
-  UNKNOWN: 'bg-amber-100 text-amber-800',
-};
-
-// Matches backend launchSettings.json, but securely injected via Vite environments
-const API_ENDPOINT = import.meta.env.VITE_API_ENDPOINT || 'http://localhost:5070/api/action/process';
+const API_ENDPOINT = `${API_BASE}/api/action/interpret`;
+const AUTH_ENDPOINT = `${API_BASE}/api/auth`;
 
 function uid(prefix = '') {
   return prefix + Math.random().toString(36).slice(2, 10);
@@ -33,78 +25,117 @@ function uid(prefix = '') {
 
 function formatLocal(iso) {
   try {
-    return new Date(iso).toLocaleString();
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
   } catch {
     return iso;
   }
 }
 
-function parseIntentSimple(text) {
-  const t = (text || '').trim();
-  const lower = t.toLowerCase();
-  const forMatch = t.match(/(?:for|of|about|on)\\s+([\\w\\s-]+)/i);
-  const product = forMatch ? forMatch[1].trim() : (t.match(/\\b(dell|lenovo|hp|asus|acer|macbook|xps|thinkpad|widget)\\b/i)?.[0] || t);
-
-  if (!t) return { intent: 'UNKNOWN_INTENT', entity: t || 'unknown', parameters: {} };
-
-  if (lower.includes('check') || lower.includes('stock') || lower.includes('inventory')) {
-    return { intent: 'CHECK_STOCK', entity: product, parameters: {} };
-  }
-
-  return { intent: 'UNKNOWN_INTENT', entity: t, parameters: {} };
-}
-
 export default function App() {
-  const [active, setActive] = useState('chat');
+  // Auth state
+  const [authUser, setAuthUser] = useState(null); // { fullName, role }
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+
+  // Command center state
   const [input, setInput] = useState('');
   const [chat, setChat] = useState([
     {
       id: uid('sys-'),
       role: 'system',
-      text: 'FlowSpeak demo: ask to check stock for a product.',
-      intent: 'SYSTEM',
+      text: 'SYSTEM ONLINE. Awaiting natural language intent commands. Try: "Check stock for Dell XPS 15" or "Reserve 2 Dell XPS 15s".',
+      intent: 'SYSTEM_READY',
       status: 'SUCCESS',
       ts: new Date().toISOString(),
     },
   ]);
-  const [transactions, setTransactions] = useState([]);
-  const [aiLogs, setAiLogs] = useState([]);
+  const { latestTick, isConnected, historyRef } = useTelemetry();
+  const [activeContext, setActiveContext] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const chatScrollRef = useRef(null);
+
+  // ── Login Handler ──
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      const resp = await fetch(`${AUTH_ENDPOINT}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Mistake #9 Avoided
+        body: JSON.stringify(loginForm),
+      });
+      const body = await resp.json().catch(() => ({}));
+      if (resp.ok && body.success) {
+        setAuthUser(body.user);
+      } else {
+        setAuthError(body.message || 'Login failed.');
+      }
+    } catch {
+      setAuthError('Cannot connect to server.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // ── Logout Handler ──
+  const handleLogout = async () => {
+    await fetch(`${AUTH_ENDPOINT}/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
+    setAuthUser(null);
+    setLoginForm({ username: '', password: '' });
+  };
 
   useEffect(() => {
     if (chatScrollRef.current) chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
   }, [chat]);
-
-  const metrics = useMemo(() => {
-    const total = aiLogs.length;
-    const success = aiLogs.filter((l) => l.pipelineStatus === 'COMPLETED' || l.pipelineStatus === 'SUCCESS').length;
-    const rate = total ? Math.round((success / total) * 100) : 0;
-    return { total, successRate: rate, gateways: 3 };
-  }, [aiLogs]);
 
   const submitMessage = async (e) => {
     e && e.preventDefault();
     const text = input.trim();
     if (!text) return;
 
-    const parsed = parseIntentSimple(text);
     const userMsg = { id: uid('user-'), role: 'user', text, ts: new Date().toISOString() };
+    
+    // Rule: SPA Memory Management
     setChat((current) => [...current, userMsg].slice(-100));
     setInput('');
     setLoading(true);
-    setError('');
 
     try {
+      let body = null;
+      // Send raw text to the backend NLP engine — the server does all the thinking
+      // Mistake #9 Avoided: credentials: 'include' sends HttpOnly cookies automatically
       const resp = await fetch(API_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ intent: parsed.intent, entity: parsed.entity, parameters: parsed.parameters }),
+        credentials: 'include',
+        body: JSON.stringify({ text }),
       });
 
-      const body = await resp.json().catch(() => ({}));
-      const returnedIntent = body.intent || parsed.intent || 'UNKNOWN_INTENT';
+      // If 401, session expired — try refresh
+      if (resp.status === 401) {
+        const refreshResp = await fetch(`${AUTH_ENDPOINT}/refresh`, { method: 'POST', credentials: 'include' });
+        if (refreshResp.ok) {
+          // Retry the original request with the new cookie
+          const retryResp = await fetch(API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ text }),
+          });
+          // Continue with retried response
+          body = await retryResp.json().catch(() => ({}));
+        } else {
+          setAuthUser(null);
+          return;
+        }
+      }
+
+      if (!body) body = await resp.json().catch(() => ({}));
+      const returnedIntent = body.intent || 'UNKNOWN_INTENT';
       const status = body.success === true ? 'SUCCESS' : body.success === false ? 'FAILED' : 'UNKNOWN';
       const systemText = body.message || body.text || `Processed intent ${returnedIntent}`;
 
@@ -116,288 +147,295 @@ export default function App() {
         status,
         ts: new Date().toISOString(),
       };
+      
+      // Rule: SPA Memory Management
       setChat((current) => [...current, sysMsg].slice(-100));
 
-      const txn = {
-        id: uid('txn-'),
-        timestamp: new Date().toISOString(),
-        activity: returnedIntent === 'CHECK_STOCK' ? `Checked Stock for ${parsed.entity}` : `Executed ${returnedIntent}`,
-        status: status === 'SUCCESS' ? 'SUCCESS' : 'FAILED',
-      };
-      setTransactions((current) => [txn, ...current].slice(0, 200));
+      // Update Context Cards based on response type
+      if (body.success && body.data) {
+        // If data is an array (CHECK_STOCK), use first element
+        if (Array.isArray(body.data) && body.data.length > 0) {
+          setActiveContext({ type: 'product', ...body.data[0] });
+        }
+        // If data is an object with orderNumber (RESERVE_STOCK), show order receipt
+        else if (body.data.orderNumber) {
+          setActiveContext({ type: 'order', ...body.data });
+        }
+      }
 
-      const aiLog = {
-        id: uid('log-'),
-        intentToken: returnedIntent,
-        payload: JSON.stringify({ request: { intent: parsed.intent, entity: parsed.entity, parameters: parsed.parameters }, response: body }, null, 2),
-        pipelineStatus: status === 'SUCCESS' ? 'COMPLETED' : status === 'FAILED' ? 'FAILED' : 'QUEUED',
-        ts: new Date().toISOString(),
-      };
-      setAiLogs((current) => [aiLog, ...current].slice(0, 500));
     } catch (err) {
-      setError('Unable to reach backend. Ensure http://localhost:5070 is running.');
-      const failMsg = { id: uid('sys-'), role: 'system', text: 'Network error: failed to reach backend.', intent: 'FAILED', status: 'FAILED', ts: new Date().toISOString() };
-      setChat((current) => [...current, failMsg]);
-      const txn = { id: uid('txn-'), timestamp: new Date().toISOString(), activity: `Network error for: ${text}`, status: 'FAILED' };
-      setTransactions((current) => [txn, ...current]);
-      const aiLog = { id: uid('log-'), intentToken: 'NETWORK_ERROR', payload: JSON.stringify({ request: { intent: parsed.intent, entity: parsed.entity }, error: String(err) }, null, 2), pipelineStatus: 'FAILED', ts: new Date().toISOString() };
-      setAiLogs((current) => [aiLog, ...current]);
+      const failMsg = { id: uid('sys-'), role: 'system', text: 'CONNECTION SEVERED: Failed to reach Execution Layer backend.', intent: 'NETWORK_ERROR', status: 'FAILED', ts: new Date().toISOString() };
+      setChat((current) => [...current, failMsg].slice(-100));
     } finally {
       setLoading(false);
     }
   };
 
-  const renderContent = () => {
-    if (active === 'transactions') {
-      return (
-        <div className="space-y-6">
-          <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-slate-900">Transaction Summary</h3>
-            <p className="mt-2 text-sm text-slate-500">Recent workflow activity generated from chat commands.</p>
-          </div>
-
-          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-            <table className="min-w-full divide-y text-left text-sm">
-              <thead className="bg-slate-50 text-slate-700">
-                <tr>
-                  <th className="px-6 py-4">Timestamp</th>
-                  <th className="px-6 py-4">Activity</th>
-                  <th className="px-6 py-4">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y bg-white">
-                {transactions.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="px-6 py-8 text-center text-slate-500">
-                      No transactions yet — submit a chat to generate activity.
-                    </td>
-                  </tr>
-                ) : (
-                  transactions.map((row) => (
-                    <tr key={row.id}>
-                      <td className="px-6 py-4 text-slate-600">{formatLocal(row.timestamp)}</td>
-                      <td className="px-6 py-4 font-medium text-slate-900">{row.activity}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${row.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
-                          {row.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      );
-    }
-
-    if (active === 'admin') {
-      return (
-        <div className="space-y-6">
-          <div className="grid gap-4 lg:grid-cols-3">
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-sm">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Total Requests</p>
-              <p className="mt-4 text-3xl font-semibold text-slate-900">{metrics.total}</p>
-            </div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-sm">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Success Rate</p>
-              <p className="mt-4 text-3xl font-semibold text-slate-900">{metrics.successRate}%</p>
-            </div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-sm">
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Active Gateways</p>
-              <p className="mt-4 text-3xl font-semibold text-slate-900">{metrics.gateways}</p>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-            <table className="min-w-full divide-y text-left text-sm">
-              <thead className="bg-slate-50 text-slate-700">
-                <tr>
-                  <th className="px-6 py-4">Audit ID</th>
-                  <th className="px-6 py-4">Intent Token</th>
-                  <th className="px-6 py-4">Payload</th>
-                  <th className="px-6 py-4">Pipeline Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y bg-white">
-                {aiLogs.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
-                      No audit logs available yet.
-                    </td>
-                  </tr>
-                ) : (
-                  aiLogs.map((log) => (
-                    <tr key={log.id}>
-                      <td className="px-6 py-4 font-medium text-slate-900">{log.id}</td>
-                      <td className="px-6 py-4 text-slate-700">{log.intentToken}</td>
-                      <td className="px-6 py-4">
-                        <pre className="max-h-44 overflow-auto rounded-2xl bg-slate-100 p-3 text-xs font-mono text-slate-700">{log.payload}</pre>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{log.pipelineStatus}</span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      );
-    }
-
+  if (!authUser) {
     return (
-      <div className="space-y-6">
-        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900">Conversation Dashboard</h3>
-              <p className="mt-2 text-sm text-slate-500">Send a message and let the backend resolve inventory status in real time.</p>
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm text-slate-600 shadow-sm">
-              <Clock className="h-4 w-4" /> Backend-first response
+      <div className="h-screen w-full bg-[#0B0F19] flex items-center justify-center text-slate-300 font-sans">
+        <form onSubmit={handleLogin} className="bg-[#151B2B] p-8 rounded-2xl border border-slate-800 shadow-2xl w-full max-w-sm">
+          <div className="flex justify-center mb-6">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400">
+              <Lock className="h-6 w-6" />
             </div>
           </div>
-        </div>
+          <h2 className="text-xl font-bold text-center text-white mb-6 tracking-widest uppercase">Command Center</h2>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">Username</label>
+              <input type="text" value={loginForm.username} onChange={e => setLoginForm({...loginForm, username: e.target.value})} className="w-full bg-[#0B0F19] border border-slate-700 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-emerald-500" autoFocus />
+            </div>
+            <div>
+              <label className="block text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">Password</label>
+              <input type="password" value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} className="w-full bg-[#0B0F19] border border-slate-700 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-emerald-500" />
+            </div>
+          </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div ref={chatScrollRef} className="max-h-[42rem] space-y-4 overflow-y-auto p-6">
-            {chat.map((message) => (
-              <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`${message.role === 'user' ? 'bg-slate-900 text-white' : 'bg-slate-50 border border-slate-200'} max-w-[78%] rounded-3xl px-5 py-4 shadow-sm`}>
-                  <p className="whitespace-pre-wrap text-sm leading-6">{message.text}</p>
-                  {message.role === 'system' && (
-                    <div className="mt-3 flex items-center gap-3 text-xs text-slate-500">
-                      <span className={`inline-flex rounded-full px-2.5 py-1 ${message.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-800' : message.status === 'FAILED' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
-                        {message.intent}
-                      </span>
-                      <span>{formatLocal(message.ts)}</span>
-                    </div>
-                  )}
+          {authError && <p className="text-red-400 text-xs mt-4 text-center">{authError}</p>}
+
+          <button type="submit" disabled={authLoading} className="w-full mt-6 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+            {authLoading ? 'Authenticating...' : 'Access Terminal'}
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  return (
+    // Core Layout: Deep Dark Mode, 100vh, hidden overflow for fixed app feel
+    <div className="h-screen w-full bg-[#0B0F19] text-slate-300 font-sans overflow-hidden flex flex-col">
+      
+      {/* Top Navigation / Status Bar */}
+      <header className="h-16 border-b border-slate-800 bg-[#0B0F19] flex items-center justify-between px-6 shrink-0 z-10">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
+            <Zap className="h-4 w-4" />
+          </div>
+          <h1 className="text-sm font-semibold tracking-widest text-slate-100 uppercase">FlowSpeak Command Center</h1>
+        </div>
+        <div className="flex items-center gap-4 text-xs font-mono">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              {isConnected ? (
+                <>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </>
+              ) : (
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+              )}
+            </span>
+            <span className={isConnected ? "text-emerald-400" : "text-red-400"}>
+              {isConnected ? "TELEMETRY_LINK" : "DISCONNECTED"}
+            </span>
+          </div>
+          <div className="h-4 w-px bg-slate-800"></div>
+          <span className="text-slate-400">ID: {authUser.fullName} ({authUser.role})</span>
+          <button onClick={handleLogout} className="ml-2 flex items-center gap-1 text-slate-500 hover:text-white transition-colors" title="Disconnect">
+            <LogOut className="h-4 w-4" />
+          </button>
+        </div>
+      </header>
+
+      {/* 3-Panel HUD Workspace */}
+      <main className="flex-1 grid grid-cols-1 lg:grid-cols-[300px_1fr_320px] h-[calc(100vh-4rem)]">
+        
+        {/* PANEL 1: LIVE LEDGER */}
+        <aside className="border-r border-slate-800 bg-[#0F1423] flex flex-col hidden lg:flex">
+          <div className="p-4 border-b border-slate-800/50 bg-[#0B0F19]/50">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+              <Activity className="h-4 w-4" /> Live Ledger
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+            {historyRef.current.length === 0 ? (
+              <p className="text-xs text-slate-600 font-mono text-center mt-10">No transactions recorded.</p>
+            ) : (
+              historyRef.current.map((txn, index) => (
+                <div key={txn.id || index} className="rounded-lg border border-slate-800 bg-[#151B2B] p-3 text-xs font-mono shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-slate-500">{formatLocal(txn.timestamp)}</span>
+                    {txn.status === 'SUCCESS' ? (
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                    ) : (
+                      <AlertCircle className="h-3 w-3 text-red-500" />
+                    )}
+                  </div>
+                  <div className="text-slate-300">
+                    <span className="text-slate-500">INTENT: </span>
+                    <span className={txn.status === 'SUCCESS' ? 'text-emerald-400' : 'text-red-400'}>{txn.intent}</span>
+                  </div>
+                  <div className="text-slate-300 mt-1 truncate">
+                    <span className="text-slate-500">ENTITY: </span>
+                    {txn.entity}
+                  </div>
                 </div>
+              ))
+            )}
+          </div>
+        </aside>
+
+        {/* PANEL 2: COMMAND CHAT */}
+        <section className="flex flex-col bg-[#0B0F19] relative">
+          
+          {/* Background subtle gradient for depth */}
+          <div className="absolute inset-0 bg-gradient-to-b from-blue-900/5 to-transparent pointer-events-none"></div>
+
+          <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar z-10">
+            {chat.map((msg) => (
+              <div key={msg.id} className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                {msg.role === 'user' ? (
+                  <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-blue-600 px-5 py-3.5 text-white shadow-lg shadow-blue-900/20">
+                    <p className="text-[15px] leading-relaxed">{msg.text}</p>
+                  </div>
+                ) : (
+                  <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-[#151B2B] border border-slate-700/50 px-5 py-4 shadow-lg shadow-black/20">
+                    <div className="flex items-center gap-2 mb-2 text-xs font-mono uppercase tracking-wide">
+                      <Cpu className="h-3.5 w-3.5 text-slate-400" />
+                      <span className="text-slate-400">Execution Engine</span>
+                      <span className="text-slate-600 px-1">•</span>
+                      <span className={msg.status === 'SUCCESS' ? 'text-emerald-400' : 'text-red-400'}>
+                        [{msg.intent}]
+                      </span>
+                    </div>
+                    <p className="text-[15px] leading-relaxed text-slate-200 whitespace-pre-wrap">{msg.text}</p>
+                  </div>
+                )}
               </div>
             ))}
           </div>
 
-          <form onSubmit={submitMessage} className="border-t border-slate-200 bg-slate-50 p-6">
-            <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
-              <textarea
+          {/* Input Area */}
+          <div className="p-6 bg-[#0B0F19] border-t border-slate-800 z-10">
+            <form onSubmit={submitMessage} className="relative flex items-center">
+              <input
+                type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about product availability, e.g. Check stock for Dell XPS 15"
-                className="min-h-[110px] w-full resize-none rounded-3xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-900 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+                placeholder="Execute a command... (e.g. 'Reserve 5 Dell Laptops')"
+                autoFocus
+                className="w-full rounded-2xl bg-[#151B2B] border border-slate-700 py-4 pl-5 pr-16 text-[15px] text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-inner"
               />
               <button
                 type="submit"
-                disabled={loading}
-                className="inline-flex items-center justify-center gap-2 rounded-3xl bg-slate-900 px-6 py-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={loading || !input.trim()}
+                className="absolute right-2 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
               >
-                <Send className="h-4 w-4" /> {loading ? 'Processing...' : 'Send Request'}
+                <Send className="h-4 w-4 ml-0.5" />
               </button>
-            </div>
-            {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-          </form>
-        </div>
-      </div>
-    );
-  };
+            </form>
+          </div>
+        </section>
 
-  return (
-    <div className="min-h-screen bg-slate-100 text-slate-900">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8 rounded-[2rem] bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 p-8 text-white shadow-2xl shadow-slate-500/10">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-sm uppercase tracking-[0.4em] text-emerald-300">FlowSpeak</p>
-              <h1 className="mt-3 text-4xl font-semibold tracking-tight">Inventory Intelligence Dashboard</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                A production-ready view for backend-driven stock checks, audit telemetry, and transaction monitoring.
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-3xl bg-slate-800/80 px-5 py-4 text-center">
-                <p className="text-xs uppercase tracking-[0.4em] text-slate-400">Requests</p>
-                <p className="mt-3 text-2xl font-semibold">{metrics.total}</p>
-              </div>
-              <div className="rounded-3xl bg-slate-800/80 px-5 py-4 text-center">
-                <p className="text-xs uppercase tracking-[0.4em] text-slate-400">Success</p>
-                <p className="mt-3 text-2xl font-semibold">{metrics.successRate}%</p>
-              </div>
-              <div className="rounded-3xl bg-slate-800/80 px-5 py-4 text-center">
-                <p className="text-xs uppercase tracking-[0.4em] text-slate-400">Gateways</p>
-                <p className="mt-3 text-2xl font-semibold">{metrics.gateways}</p>
-              </div>
+        {/* PANEL 3: CONTEXT CARDS */}
+        <aside className="border-l border-slate-800 bg-[#0F1423] flex flex-col hidden lg:flex">
+          <div className="p-4 border-b border-slate-800/50 bg-[#0B0F19]/50">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+              <Database className="h-4 w-4" /> Live Context
             </div>
           </div>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-          <aside className="space-y-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-3 rounded-3xl bg-slate-900 px-4 py-4 text-white shadow-lg">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400 text-slate-900">
-                <Zap className="h-5 w-5" />
+          <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
+            {!activeContext ? (
+              <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4 opacity-50">
+                <Package className="h-12 w-12" />
+                <p className="text-xs font-mono uppercase text-center">No active record in context.<br/>Query a product to load.</p>
               </div>
-              <div>
-                <h2 className="text-lg font-semibold">FlowSpeak</h2>
-                <p className="text-sm text-slate-300">Core intent execution engine</p>
-              </div>
-            </div>
-
-            <nav className="space-y-2">
-              {TABS.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = active === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActive(tab.id)}
-                    className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all font-medium ${
-                      isActive ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/10' : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
-                    }`}
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-              <p className="text-xs uppercase tracking-[0.35em] text-slate-500">System metrics</p>
-              <div className="mt-4 space-y-4">
-                <div className="rounded-2xl bg-white p-4 shadow-sm">
-                  <p className="text-xs text-slate-500">Total requests</p>
-                  <p className="mt-2 text-2xl font-semibold text-slate-900">{metrics.total}</p>
+            ) : activeContext.type === 'order' ? (
+              /* ORDER RECEIPT CARD */
+              <div className="rounded-xl bg-[#1A2235] border border-slate-700/60 overflow-hidden shadow-2xl">
+                <div className="bg-gradient-to-r from-blue-900 to-indigo-900 p-5 border-b border-slate-700/60 relative overflow-hidden">
+                  <div className="absolute -right-4 -top-4 opacity-10">
+                    <CheckCircle2 className="h-24 w-24" />
+                  </div>
+                  <p className="text-xs uppercase tracking-widest text-blue-300 font-semibold relative z-10">Order Receipt</p>
+                  <h3 className="text-xl font-bold text-white relative z-10 mt-1">{activeContext.orderNumber}</h3>
                 </div>
-                <div className="rounded-2xl bg-white p-4 shadow-sm">
-                  <p className="text-xs text-slate-500">Success rate</p>
-                  <p className="mt-2 text-2xl font-semibold text-slate-900">{metrics.successRate}%</p>
+                
+                <div className="p-5 space-y-5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Status</p>
+                    <span className="rounded-full bg-amber-500/20 text-amber-400 px-3 py-1 text-xs font-bold uppercase">{activeContext.status}</span>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">Product</p>
+                    <p className="text-sm text-slate-200">{activeContext.productName}</p>
+                    <p className="text-xs font-mono text-slate-500 mt-0.5">{activeContext.productSKU}</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">Qty Reserved</p>
+                      <p className="text-2xl font-mono text-white">{activeContext.quantity}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">Total</p>
+                      <p className="text-2xl font-light text-emerald-400">${activeContext.totalAmount?.toFixed(2)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-[#151B2B] border-t border-slate-700/60 text-center">
+                  <p className="text-[10px] uppercase font-mono text-slate-500">Order Logged to SQL Server</p>
                 </div>
               </div>
-            </div>
-          </aside>
-
-          <main className="flex-1">
-            <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.4em] text-emerald-600">Active Page</p>
-                  <h2 className="mt-3 text-3xl font-semibold text-slate-900 capitalize">{active === 'chat' ? 'Demo Chat' : active === 'transactions' ? 'Transactions' : 'Admin Telemetry'}</h2>
+            ) : (
+              /* PRODUCT CONTEXT CARD */
+              <div className="rounded-xl bg-[#1A2235] border border-slate-700/60 overflow-hidden shadow-2xl">
+                <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-5 border-b border-slate-700/60 relative overflow-hidden">
+                  <div className="absolute -right-4 -top-4 opacity-10">
+                    <Package className="h-24 w-24" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-white relative z-10 leading-tight">{activeContext.name}</h3>
+                  <div className="mt-2 flex items-center gap-2 relative z-10">
+                    <Tag className="h-3 w-3 text-slate-400" />
+                    <span className="text-xs font-mono text-slate-400 uppercase tracking-widest">{activeContext.sku}</span>
+                  </div>
                 </div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-sm text-slate-600">
-                  <Database className="h-4 w-4" /> Backend driven results
+                
+                <div className="p-5 space-y-6">
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">Pricing</p>
+                    <p className="text-3xl font-light text-white">${activeContext.price?.toFixed(2)}</p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">Inventory Status</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`h-2.5 w-2.5 rounded-full ${activeContext.stockQuantity > 0 ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]' : 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)]'}`}></div>
+                        <span className="text-sm font-medium text-slate-300">
+                          {activeContext.stockQuantity > 0 ? 'In Stock' : 'Out of Stock'}
+                        </span>
+                      </div>
+                      <span className="text-xl font-mono text-white">{activeContext.stockQuantity}</span>
+                    </div>
+                    <div className="mt-3 h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-1000 ${activeContext.stockQuantity > 20 ? 'bg-emerald-500' : activeContext.stockQuantity > 0 ? 'bg-amber-500' : 'bg-red-500'}`}
+                        style={{ width: `${Math.min((activeContext.stockQuantity / 100) * 100, 100)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-[#151B2B] border-t border-slate-700/60 text-center">
+                  <p className="text-[10px] uppercase font-mono text-slate-500">Live Database Binding Active</p>
                 </div>
               </div>
+            )}
+          </div>
+        </aside>
 
-              <div className="mt-6 grid gap-6">
-                {renderContent()}
-              </div>
-            </div>
-          </main>
-        </div>
-      </div>
+      </main>
+      
+      {/* Global styles for custom scrollbars */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #334155; }
+      `}} />
     </div>
   );
 }

@@ -2,18 +2,21 @@ using System.Linq;
 using System.Threading.Tasks;
 using FlowSpeak.Api.Models.DTOs;
 using FlowSpeak.Api.Services;
+using System.Threading.Channels;
 
 namespace FlowSpeak.Api.Services.Intent
 {
     public class CheckStockHandler : IIntentHandler
     {
         private readonly IProductService _productService;
+        private readonly Channel<TelemetryMessage> _telemetryChannel;
 
         public string IntentName => "CHECK_STOCK";
 
-        public CheckStockHandler(IProductService productService)
+        public CheckStockHandler(IProductService productService, Channel<TelemetryMessage> telemetryChannel)
         {
             _productService = productService;
+            _telemetryChannel = telemetryChannel;
         }
 
         public async Task<ActionResponse> HandleAsync(IntentRequest request)
@@ -53,19 +56,38 @@ namespace FlowSpeak.Api.Services.Intent
             // Check stock status
             if (matchedProduct.StockQuantity > 0)
             {
+                var message = $"Yes, we have {matchedProduct.StockQuantity} units of {matchedProduct.Name} available (SKU: {matchedProduct.SKU}).";
+                _telemetryChannel.Writer.TryWrite(new TelemetryMessage
+                {
+                    EventType = "STOCK_CHECK",
+                    Entity = matchedProduct.Name,
+                    Intent = IntentName,
+                    Payload = message
+                });
+
                 return new ActionResponse
                 {
                     Success = true,
-                    Message = $"Yes, we have {matchedProduct.StockQuantity} units of {matchedProduct.Name} available (SKU: {matchedProduct.SKU}).",
+                    Message = message,
                     Data = new[] { matchedProduct }
                 };
             }
             else
             {
+                var message = $"Sorry, {matchedProduct.Name} is currently out of stock.";
+                _telemetryChannel.Writer.TryWrite(new TelemetryMessage
+                {
+                    EventType = "STOCK_CHECK_FAILED",
+                    Entity = matchedProduct.Name,
+                    Intent = IntentName,
+                    Status = "FAILED",
+                    Payload = message
+                });
+
                 return new ActionResponse
                 {
                     Success = false,
-                    Message = $"Sorry, {matchedProduct.Name} is currently out of stock.",
+                    Message = message,
                     Data = null
                 };
             }
