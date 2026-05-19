@@ -2,6 +2,17 @@
 
 An AI-augmented enterprise application separating non-deterministic language parsing from safe, transactional backend workflows. Built using an ASP.NET Core API, SQL Server database integration, and a Vite + React modular UI dashboard.
 
+## 📥 Getting Started (Downloading from GitHub)
+
+To run this project locally, first clone the repository from GitHub and navigate into the project folder:
+
+```bash
+git clone https://github.com/Faheembukshprog/FlowSpeak-Project.git
+cd FlowSpeak-Project
+```
+
+Once downloaded, follow the prerequisites and initialization steps below to spin up the local environment.
+
 ## 💻 Laptop Prerequisites Matrix (Cross-Platform)
 
 To ensure a deterministic, reproducible environment on any machine, the following system-level dependencies are mandatory prior to executing the workspace setup:
