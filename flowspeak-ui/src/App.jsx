@@ -240,7 +240,7 @@ export default function App() {
       </header>
 
       {/* 3-Panel HUD Workspace */}
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-[300px_1fr_320px] h-[calc(100vh-4rem)]">
+      <main className="flex-1 grid grid-cols-1 lg:grid-cols-[300px_1fr_320px] min-h-0 overflow-hidden">
         
         {/* PANEL 1: LIVE LEDGER */}
         <aside className="border-r border-slate-800 bg-[#0F1423] flex flex-col hidden lg:flex">
@@ -278,7 +278,7 @@ export default function App() {
         </aside>
 
         {/* PANEL 2: COMMAND CHAT */}
-        <section className="flex flex-col bg-[#0B0F19] relative">
+        <section className="flex flex-col bg-[#0B0F19] relative min-h-0 overflow-hidden">
           
           {/* Background subtle gradient for depth */}
           <div className="absolute inset-0 bg-gradient-to-b from-blue-900/5 to-transparent pointer-events-none"></div>

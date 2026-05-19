@@ -30,8 +30,8 @@ export default function ChatPage() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-hidden rounded-2xl border bg-white">
-        <div ref={chatScrollRef} className="h-full overflow-y-auto p-6">
+      <div className="flex-1 overflow-hidden rounded-2xl border bg-white flex flex-col">
+        <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-6">
           <div className="space-y-4">
             {chat.map((message) => (
               <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -57,7 +57,7 @@ export default function ChatPage() {
           </div>
         </div>
 
-        <form onSubmit={submitMessage} className="sticky bottom-0 z-10 mt-auto bg-white px-6 py-4">
+        <form onSubmit={submitMessage} className="mt-auto border-t bg-white px-6 py-4 shrink-0">
           <div className="mx-auto flex max-w-4xl gap-3">
             <textarea
               value={input}

@@ -43,6 +43,7 @@ namespace FlowSpeak.Api.Controllers
                     };
 
                 var wasSuccessful = response.Success;
+                response.Intent = request.Intent ?? "UNKNOWN_INTENT";
 
                 await LogIntentAsync(request, response, wasSuccessful, wasSuccessful ? null : response.Message);
 
@@ -57,7 +58,8 @@ namespace FlowSpeak.Api.Controllers
                 {
                     Success = false,
                     Message = $"An error occurred processing intent {request.Intent}: {ex.Message}",
-                    Data = null
+                    Data = null,
+                    Intent = request.Intent ?? "UNKNOWN_INTENT"
                 };
 
                 await LogIntentAsync(request, errorResponse, false, ex.Message);
@@ -98,6 +100,7 @@ namespace FlowSpeak.Api.Controllers
                     };
 
                 var wasSuccessful = response.Success;
+                response.Intent = intentRequest.Intent ?? "UNKNOWN_INTENT";
                 await LogIntentAsync(intentRequest, response, wasSuccessful, wasSuccessful ? null : response.Message);
 
                 if (wasSuccessful)
@@ -111,7 +114,8 @@ namespace FlowSpeak.Api.Controllers
                 {
                     Success = false,
                     Message = $"Interpretation failed: {ex.Message}",
-                    Data = null
+                    Data = null,
+                    Intent = "UNKNOWN_INTENT"
                 };
                 return StatusCode(500, errorResponse);
             }
