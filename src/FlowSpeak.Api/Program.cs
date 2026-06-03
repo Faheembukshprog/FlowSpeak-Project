@@ -7,6 +7,7 @@ using FlowSpeak.Api.Services.Telemetry;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -109,7 +110,42 @@ builder.Services.AddHttpClient<FlowSpeak.Api.Services.AI.IAIProvider, FlowSpeak.
 });
 builder.Services.AddSingleton<FlowSpeak.Api.Services.Auth.IJwtService, FlowSpeak.Api.Services.Auth.JwtService>();
 builder.Services.AddSingleton<FlowSpeak.Api.Services.Telemetry.ITelemetryService, FlowSpeak.Api.Services.Telemetry.NullTelemetryService>();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
+    {
+        document.Info.Title = "FlowSpeak API";
+        document.Info.Version = "v1";
+        document.Info.Description = "API documentation for the FlowSpeak Command Center backend, facilitating AI-driven inventory and order routing orchestration.";
+        
+        var jwtScheme = new global::Microsoft.OpenApi.OpenApiSecurityScheme
+        {
+            Type = global::Microsoft.OpenApi.SecuritySchemeType.Http,
+            Name = "Authorization",
+            In = global::Microsoft.OpenApi.ParameterLocation.Header,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            Description = "Enter JWT access token."
+        };
+        
+        document.Components ??= new global::Microsoft.OpenApi.OpenApiComponents();
+        if (document.Components.SecuritySchemes == null)
+        {
+            document.Components.SecuritySchemes = new Dictionary<string, global::Microsoft.OpenApi.IOpenApiSecurityScheme>();
+        }
+        document.Components.SecuritySchemes.Add("Bearer", jwtScheme);
+        
+        var requirement = new global::Microsoft.OpenApi.OpenApiSecurityRequirement
+        {
+            [new global::Microsoft.OpenApi.OpenApiSecuritySchemeReference("Bearer", document)] = new List<string>()
+        };
+        
+        document.Security ??= new List<global::Microsoft.OpenApi.OpenApiSecurityRequirement>();
+        document.Security.Add(requirement);
+        
+        return Task.CompletedTask;
+    });
+});
 
 var app = builder.Build();
 
@@ -133,6 +169,12 @@ using (var scope = app.Services.CreateScope())
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference(options =>
+    {
+        options.WithTitle("FlowSpeak API Documentation")
+               .WithTheme(ScalarTheme.DeepSpace)
+               .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
+    });
 }
 
 app.UseRouting();

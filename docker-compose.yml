@@ -1,0 +1,94 @@
+services:
+  # ============================================================================
+  # DATABASE SERVICE: SQL Server 2022 Pinned Container
+  # ============================================================================
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-CU12-ubuntu-22.04
+    container_name: flowspeak_db
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    networks:
+      - flowspeak_secure_network
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "${MSSQL_SA_PASSWORD}", "-Q", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ============================================================================
+  # BACKEND SERVICE: .NET 10.0 Web API App
+  # ============================================================================
+  api:
+    build:
+      context: ./src/FlowSpeak.Api
+      dockerfile: Dockerfile
+    container_name: flowspeak_api
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      DB_CONNECTION_STRING: "Server=db;Database=FlowSpeakDb;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;"
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      Jwt__Issuer: "FlowSpeak.Api"
+      Jwt__Audience: "FlowSpeak.Client"
+    ports:
+      - "5000:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - flowspeak_secure_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ============================================================================
+  # FRONTEND SERVICE: React / Vite App served via Nginx (Non-Root)
+  # ============================================================================
+  ui:
+    build:
+      context: ./flowspeak-ui
+      dockerfile: Dockerfile
+    container_name: flowspeak_ui
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "80:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - flowspeak_secure_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+# ==============================================================================
+# DATA PERSISTENCE & ISOLATED NETWORKS
+# ==============================================================================
+volumes:
+  mssql_data:
+    name: flowspeak_prod_mssql_data
+
+networks:
+  flowspeak_secure_network:
+    name: flowspeak_prod_net
+    driver: bridge
