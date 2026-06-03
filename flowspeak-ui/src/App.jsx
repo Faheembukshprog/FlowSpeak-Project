@@ -14,10 +14,8 @@ import {
 } from 'lucide-react';
 import { useTelemetry } from './contexts/TelemetryContext.jsx';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5070';
-
-const API_ENDPOINT = `${API_BASE}/api/action/interpret`;
-const AUTH_ENDPOINT = `${API_BASE}/api/auth`;
+const API_ENDPOINT = '/api/action/interpret';
+const AUTH_ENDPOINT = '/api/auth';
 
 function uid(prefix = '') {
   return prefix + Math.random().toString(36).slice(2, 10);

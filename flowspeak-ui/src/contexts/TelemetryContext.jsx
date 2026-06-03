@@ -24,12 +24,10 @@ export const LeakFreeTelemetryProvider = ({ children }) => {
         let isCurrentMount = true;
 
         const connection = new signalR.HubConnectionBuilder()
-            .withUrl(import.meta.env.VITE_API_ENDPOINT?.replace('/api', '/hubs/telemetry') || `${import.meta.env.VITE_API_BASE || 'http://localhost:5070'}/hubs/telemetry`, {
-                // Forces the client to stick directly to WebSockets instead of spinning up 
-                // HTTP handshake fallbacks that leak request pools
-                skipNegotiation: true,
+            .withUrl('/hubs/telemetry', {
+                skipNegotiation: false,
                 transport: signalR.HttpTransportType.WebSockets,
-                withCredentials: true // Important if Authorization relies on HttpOnly cookies
+                withCredentials: true
             })
             .withHubProtocol(new MessagePackHubProtocol())
             .withAutomaticReconnect([0, 2000, 10000, 30000]) // Strict backoff control

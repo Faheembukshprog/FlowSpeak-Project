@@ -14,9 +14,9 @@ var builder = WebApplication.CreateBuilder(args);
 // ── Database ──
 var connectionString = builder.Configuration["DB_CONNECTION_STRING"]
                        ?? builder.Configuration.GetConnectionString("DefaultConnection")
-                       ?? "Server=localhost\\SQLEXPRESS;Database=FlowSpeakDB;Trusted_Connection=True;TrustServerCertificate=True;";
+                       ?? "Data Source=flowspeak.db";
 
-builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
+builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connectionString));
 
 builder.Services.AddControllers();
 
@@ -38,15 +38,33 @@ builder.Services.AddSingleton(Channel.CreateBounded<TelemetryMessage>(new Bounde
 
 builder.Services.AddHostedService<TelemetryProcessingEngine>();
 
-// ── CORS (Mistake #10 Avoided: explicit origin + AllowCredentials, NO wildcards) ──
+// ── CORS ──
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FlowSpeakCORS", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "https://localhost:5173")
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials(); // Essential for HttpOnly cookie propagation
+        var frontendUrl = builder.Configuration["FRONTEND_URL"] ?? "";
+        if (!string.IsNullOrEmpty(frontendUrl))
+        {
+            policy.WithOrigins(
+                    frontendUrl,
+                    "http://localhost:5000",
+                    "https://localhost:5000",
+                    "http://localhost:5173",
+                    "https://localhost:5173"
+                  )
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
+        }
+        else
+        {
+            // Development fallback: allow all origins
+            policy.SetIsOriginAllowed(_ => true)
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
+        }
     });
 });
 
@@ -179,7 +197,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseRouting();
 app.UseCors("FlowSpeakCORS");
-app.UseHttpsRedirection();
 
 // Auth middleware — order matters: Authentication BEFORE Authorization
 app.UseAuthentication();

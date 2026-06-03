@@ -1,0 +1,1 @@
+- [FlowSpeak setup](flowspeak-setup.md) — SQLite instead of SQL Server; dotnet 10 path; backend port 3001; Vite proxy; no-build flag needed

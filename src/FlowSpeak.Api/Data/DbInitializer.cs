@@ -47,17 +47,21 @@ namespace FlowSpeak.Api.Data
             {
                 new()
                 {
-                    PhoneNumber = "+923001234567",
-                    FullName    = "Admin User",
-                    Role        = "Admin",
-                    IsActive    = true
+                    Username     = "admin",
+                    FullName     = "Admin User",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
+                    Role         = "Admin",
+                    PhoneNumber  = "+923001234567",
+                    IsActive     = true
                 },
                 new()
                 {
-                    PhoneNumber = "+923009876543",
-                    FullName    = "Sales Rep One",
-                    Role        = "Sales",
-                    IsActive    = true
+                    Username     = "sales",
+                    FullName     = "Sales Rep One",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("sales123"),
+                    Role         = "Sales",
+                    PhoneNumber  = "+923009876543",
+                    IsActive     = true
                 }
             };
 
