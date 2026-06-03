@@ -1,0 +1,53 @@
+# Role & Objective
+You are an expert Frontend Developer and UI/UX Designer. Your goal is to completely retransform the current UI into a stunning, highly interactive, and fully responsive single-page landing website. This website must effectively pitch our project's core idea, demonstrate its functionality, and professionally represent our development team.
+
+---
+
+## 1. Core Structure & Sections
+The landing page must flow logically and include the following distinct sections:
+
+*   **Hero Section:** 
+    *   A bold, high-impact headline catching the essence of our project.
+    *   A compelling sub-headline explaining the value proposition.
+    *   Dual Call-to-Action (CTA) buttons (e.g., "Live Demo" / "View Codebase").
+    *   An interactive visual element (e.g., an animated dashboard preview, interactive terminal mock, or dynamic 3D/CSS illustration).
+*   **The Problem & Solution (The Idea):**
+    *   A modern grid layout comparing the pain points vs. our engineered solution.
+    *   Use crisp, meaningful icons and subtle micro-interactions on hover.
+*   **Interactive Project Showcase / Core Features:**
+    *   Instead of static text, use tabs, an interactive slider, or a live bento-grid layout to showcase features.
+    *   Include a "How it Works" visual pipeline or stepper.
+*   **Meet the Team:**
+    *   A clean, modern team section featuring our core developers with smooth hover effects revealing their roles and quick links.
+    *   **Team Member 1:** Muhammad Faheem Khan (Frontend/Backend Engineer) -> [LinkedIn](https://www.linkedin.com/in/muhammadfaheemkhan-dev/)
+    *   **Team Member 2:** Muhammad Anees (Backend/AI Engineer) -> [LinkedIn](https://www.linkedin.com/in/muhammadanees-dev/)
+*   **Footer:**
+    *   Project copyright, repository links, and final minimal branding.
+
+---
+
+## 2. UI/UX & Interactivity Requirements (Make it Alive)
+*   **Micro-interactions:** Add smooth transitions, scaling, or depth changes (`box-shadow`) on cards, buttons, and links when hovered.
+*   **Scroll Animations:** Implement fade-in, slide-up, or stagger animations as the user scrolls down the page (using simple CSS Intersection Observer or Tailwind transition classes).
+*   **Dark Modern Aesthetic:** Prioritize a sleek, dark-mode-first tech aesthetic (e.g., deep slates/grays, rich blacks) accented with sharp, vibrant accent colors (e.g., electric blue, neon violet, or emerald green) to signify cutting-edge technology.
+*   **Glassmorphism/Modern Textures:** Use subtle backdrop blurs (`backdrop-blur-md`), fine borders, and gradient text masking where appropriate to make the UI look premium.
+
+---
+
+## 3. Technical Constraints & Code Quality
+*   **Responsive Architecture:** Ensure flawless layouts across Ultra-wide monitors, Laptops, Tablets, and Mobile screens (Mobile-first or strictly fluid design).
+*   **Clean Code Principles:** 
+    *   Maintain strict semantic HTML structure.
+    *   Use modular component architecture.
+    *   Ensure all components are strictly typed if utilizing TypeScript.
+*   **Performance:** Optimize image loading, utilize CSS transitions over heavy external libraries where possible, and avoid blocking scripts.
+
+---
+
+## 4. Execution Plan
+1.  **Refactor Layout:** Restructure the existing entry point to support the new single-page scrolling structure.
+2.  **Apply Styling & Theme:** Inject the global layout variables, background gradients, and typography config.
+3.  **Build Components:** Progressively generate the Hero, Features, Team, and Footer sections.
+4.  **Wire Interactivity:** Add the interactive states, mobile navigation toggles, and scroll-bound animations.
+
+Review the existing repository layout and rewrite/augment the frontend code to achieve this vision. Let's begin the transformation.
