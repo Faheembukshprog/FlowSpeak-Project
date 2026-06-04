@@ -1,1 +1,1 @@
-- [FlowSpeak setup](flowspeak-setup.md) — SQLite instead of SQL Server; dotnet 10 path; backend port 3001; Vite proxy; no-build flag needed
+- [Backend rate limiting & health check](backend-hardening.md) — rate limiter uses built-in ASP.NET Core RateLimiting (no NuGet); AddDbContextCheck needs a separate package (omit it).
