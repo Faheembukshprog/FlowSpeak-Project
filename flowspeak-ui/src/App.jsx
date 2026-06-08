@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Send,
   Activity,
@@ -10,12 +10,23 @@ import {
   Cpu,
   Tag,
   LogOut,
-  Lock
+  BarChart3,
+  ScrollText,
+  FileUp,
+  MessageSquare,
+  ShieldAlert,
+  X,
+  AlertTriangle,
 } from 'lucide-react';
 import { useTelemetry } from './contexts/TelemetryContext.jsx';
+import DashboardPanel from './components/DashboardPanel.jsx';
+import AuditLogPanel from './components/AuditLogPanel.jsx';
+import CsvImportPanel from './components/CsvImportPanel.jsx';
+import AccessTerminal from './components/AccessTerminal.jsx';
 
-const API_ENDPOINT = '/api/action/interpret';
-const AUTH_ENDPOINT = '/api/auth';
+const API_BASE = import.meta.env.VITE_API_ENDPOINT || '';
+const API_ENDPOINT = `${API_BASE}/api/action/interpret`;
+const AUTH_ENDPOINT = `${API_BASE}/api/auth`;
 
 function uid(prefix = '') {
   return prefix + Math.random().toString(36).slice(2, 10);
@@ -30,14 +41,69 @@ function formatLocal(iso) {
   }
 }
 
-export default function App() {
-  // Auth state
-  const [authUser, setAuthUser] = useState(null); // { fullName, role }
-  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authError, setAuthError] = useState('');
+function parseTickPayload(payload) {
+  if (!payload) return null;
+  if (typeof payload === 'string') {
+    try { return JSON.parse(payload); } catch { return null; }
+  }
+  if (typeof payload === 'object') return payload;
+  return null;
+}
 
-  // Command center state
+function txnMatchesLowStockAlert(txn, alerts) {
+  if (!alerts?.length) return false;
+  if (txn.eventType === 'LOW_STOCK_ALERT') return true;
+
+  const entity = (txn.entity || '').toLowerCase();
+  const payload = parseTickPayload(txn.payload);
+  const payloadSku = (payload?.sku || '').toUpperCase();
+
+  return alerts.some((alert) => {
+    if (alert.name && entity && alert.name.toLowerCase() === entity) return true;
+    if (payloadSku && alert.sku && payloadSku === alert.sku.toUpperCase()) return true;
+    if (entity && alert.sku && entity === alert.sku.toLowerCase()) return true;
+    return false;
+  });
+}
+
+function intentStatusClass(status) {
+  if (status === 'SUCCESS') return 'text-emerald-400';
+  if (status === 'FORBIDDEN') return 'text-amber-400';
+  return 'text-rose-500';
+}
+
+function PanelHeader({ icon: Icon, title, badge, badgeClassName = 'text-emerald-400' }) {
+  return (
+    <div className="shrink-0 p-3 sm:p-4 border-b border-slate-800/60 bg-[#0E1422]/50">
+      <div className="flex items-center gap-2 font-mono text-[10px] font-semibold uppercase tracking-widest min-w-0">
+        <Icon className="h-3.5 w-3.5 text-emerald-400/80 shrink-0" />
+        <span className="text-slate-400 shrink-0 leading-none">{title}</span>
+        {badge ? (
+          <>
+            <span className="text-slate-700 shrink-0 leading-none">·</span>
+            <span className={`shrink-0 leading-none truncate ${badgeClassName}`}>{badge}</span>
+          </>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function getTabsForRole(role) {
+  const tabs = [{ id: 'command', label: 'Command', icon: MessageSquare }];
+  if (role === 'Admin' || role === 'Sales') {
+    tabs.push({ id: 'dashboard', label: 'Dashboard', icon: BarChart3 });
+  }
+  if (role === 'Admin') {
+    tabs.push({ id: 'audit', label: 'Audit Log', icon: ScrollText });
+    tabs.push({ id: 'import', label: 'Import', icon: FileUp });
+  }
+  return tabs;
+}
+
+export default function App() {
+  const [authUser, setAuthUser] = useState(null);
+  const [activeView, setActiveView] = useState('command');
   const [input, setInput] = useState('');
   const [chat, setChat] = useState([
     {
@@ -49,41 +115,76 @@ export default function App() {
       ts: new Date().toISOString(),
     },
   ]);
-  const { latestTick, isConnected, historyRef } = useTelemetry();
+  const { latestTick, isConnected, historyRef, lowStockAlerts, dismissLowStockAlert } = useTelemetry();
   const [activeContext, setActiveContext] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [highlightedLedgerKey, setHighlightedLedgerKey] = useState(null);
+  const [bannerVisible, setBannerVisible] = useState(false);
   const chatScrollRef = useRef(null);
+  const ledgerScrollRef = useRef(null);
+  const ledgerRowRefs = useRef({});
 
-  // ── Login Handler ──
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setAuthLoading(true);
-    setAuthError('');
-    try {
-      const resp = await fetch(`${AUTH_ENDPOINT}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // Mistake #9 Avoided
-        body: JSON.stringify(loginForm),
-      });
-      const body = await resp.json().catch(() => ({}));
-      if (resp.ok && body.success) {
-        setAuthUser(body.user);
-      } else {
-        setAuthError(body.message || 'Login failed.');
-      }
-    } catch {
-      setAuthError('Cannot connect to server.');
-    } finally {
-      setAuthLoading(false);
+  const tabs = useMemo(() => (authUser ? getTabsForRole(authUser.role) : []), [authUser]);
+
+  const ledgerItems = useMemo(() => {
+    void latestTick;
+    return [...historyRef.current];
+  }, [latestTick, historyRef]);
+
+  useEffect(() => {
+    if (lowStockAlerts.length > 0) {
+      requestAnimationFrame(() => setBannerVisible(true));
+    } else {
+      setBannerVisible(false);
     }
+  }, [lowStockAlerts.length]);
+
+  const getLedgerKeyForTxn = (txn) => {
+    const entity = (txn.entity || '').toLowerCase();
+    const payload = parseTickPayload(txn.payload);
+    const sku = (payload?.sku || '').toUpperCase();
+    return sku || entity || txn.id;
   };
 
-  // ── Logout Handler ──
+  const focusLedgerForAlert = (alert) => {
+    setActiveView('command');
+    const keys = [alert.sku?.toUpperCase(), alert.name?.toLowerCase()].filter(Boolean);
+    setHighlightedLedgerKey(keys[0] || alert.id);
+
+    requestAnimationFrame(() => {
+      const items = historyRef.current;
+      let targetKey = null;
+      for (const txn of items) {
+        const key = getLedgerKeyForTxn(txn);
+        const entity = (txn.entity || '').toLowerCase();
+        if (
+          (alert.sku && (key === alert.sku.toUpperCase() || entity === alert.sku.toLowerCase())) ||
+          (alert.name && entity === alert.name.toLowerCase()) ||
+          txn.eventType === 'LOW_STOCK_ALERT'
+        ) {
+          targetKey = key;
+          break;
+        }
+      }
+      const refKey = targetKey || keys[0];
+      const el = ledgerRowRefs.current[refKey];
+      if (el && ledgerScrollRef.current) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+
+    setTimeout(() => setHighlightedLedgerKey(null), 2500);
+  };
+
+  const handleAuthenticated = (user) => {
+    setAuthUser(user);
+    setActiveView('command');
+  };
+
   const handleLogout = async () => {
     await fetch(`${AUTH_ENDPOINT}/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
     setAuthUser(null);
-    setLoginForm({ username: '', password: '' });
+    setActiveView('command');
   };
 
   useEffect(() => {
@@ -96,45 +197,45 @@ export default function App() {
     if (!text) return;
 
     const userMsg = { id: uid('user-'), role: 'user', text, ts: new Date().toISOString() };
-    
-    // Rule: SPA Memory Management
     setChat((current) => [...current, userMsg].slice(-100));
     setInput('');
     setLoading(true);
 
     try {
-      let body = null;
-      // Send raw text to the backend NLP engine — the server does all the thinking
-      // Mistake #9 Avoided: credentials: 'include' sends HttpOnly cookies automatically
-      const resp = await fetch(API_ENDPOINT, {
+      let resp = await fetch(API_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ text }),
       });
 
-      // If 401, session expired — try refresh
       if (resp.status === 401) {
         const refreshResp = await fetch(`${AUTH_ENDPOINT}/refresh`, { method: 'POST', credentials: 'include' });
         if (refreshResp.ok) {
-          // Retry the original request with the new cookie
-          const retryResp = await fetch(API_ENDPOINT, {
+          resp = await fetch(API_ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({ text }),
           });
-          // Continue with retried response
-          body = await retryResp.json().catch(() => ({}));
         } else {
           setAuthUser(null);
           return;
         }
       }
 
-      if (!body) body = await resp.json().catch(() => ({}));
+      const body = await resp.json().catch(() => ({}));
       const returnedIntent = body.intent || 'UNKNOWN_INTENT';
-      const status = body.success === true ? 'SUCCESS' : body.success === false ? 'FAILED' : 'UNKNOWN';
+
+      let status = 'UNKNOWN';
+      if (resp.status === 403 || body.errorCode === 'FORBIDDEN') {
+        status = 'FORBIDDEN';
+      } else if (body.success === true) {
+        status = 'SUCCESS';
+      } else if (body.success === false) {
+        status = 'FAILED';
+      }
+
       const systemText = body.message || body.text || `Processed intent ${returnedIntent}`;
 
       const sysMsg = {
@@ -145,23 +246,18 @@ export default function App() {
         status,
         ts: new Date().toISOString(),
       };
-      
-      // Rule: SPA Memory Management
       setChat((current) => [...current, sysMsg].slice(-100));
 
-      // Update Context Cards based on response type
       if (body.success && body.data) {
-        // If data is an array (CHECK_STOCK), use first element
         if (Array.isArray(body.data) && body.data.length > 0) {
           setActiveContext({ type: 'product', ...body.data[0] });
-        }
-        // If data is an object with orderNumber (RESERVE_STOCK), show order receipt
-        else if (body.data.orderNumber) {
+        } else if (body.data.orderNumber) {
           setActiveContext({ type: 'order', ...body.data });
+        } else if (body.data.productSKU || body.data.productName) {
+          setActiveContext({ type: 'product', name: body.data.productName, sku: body.data.productSKU, price: body.data.price, stockQuantity: body.data.stockQuantity ?? body.data.newStock });
         }
       }
-
-    } catch (err) {
+    } catch {
       const failMsg = { id: uid('sys-'), role: 'system', text: 'CONNECTION SEVERED: Failed to reach Execution Layer backend.', intent: 'NETWORK_ERROR', status: 'FAILED', ts: new Date().toISOString() };
       setChat((current) => [...current, failMsg].slice(-100));
     } finally {
@@ -170,269 +266,338 @@ export default function App() {
   };
 
   if (!authUser) {
-    return (
-      <div className="h-screen w-full bg-[#0B0F19] flex items-center justify-center text-slate-300 font-sans">
-        <form onSubmit={handleLogin} className="bg-[#151B2B] p-8 rounded-2xl border border-slate-800 shadow-2xl w-full max-w-sm">
-          <div className="flex justify-center mb-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400">
-              <Lock className="h-6 w-6" />
-            </div>
-          </div>
-          <h2 className="text-xl font-bold text-center text-white mb-6 tracking-widest uppercase">Command Center</h2>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">Username</label>
-              <input type="text" value={loginForm.username} onChange={e => setLoginForm({...loginForm, username: e.target.value})} className="w-full bg-[#0B0F19] border border-slate-700 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-emerald-500" autoFocus />
-            </div>
-            <div>
-              <label className="block text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">Password</label>
-              <input type="password" value={loginForm.password} onChange={e => setLoginForm({...loginForm, password: e.target.value})} className="w-full bg-[#0B0F19] border border-slate-700 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-emerald-500" />
-            </div>
-          </div>
-
-          {authError && <p className="text-red-400 text-xs mt-4 text-center">{authError}</p>}
-
-          <button type="submit" disabled={authLoading} className="w-full mt-6 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-            {authLoading ? 'Authenticating...' : 'Access Terminal'}
-          </button>
-        </form>
-      </div>
-    );
+    return <AccessTerminal onAuthenticated={handleAuthenticated} />;
   }
 
-  return (
-    // Core Layout: Deep Dark Mode, 100vh, hidden overflow for fixed app feel
-    <div className="h-screen w-full bg-[#0B0F19] text-slate-300 font-sans overflow-hidden flex flex-col">
-      
-      {/* Top Navigation / Status Bar */}
-      <header className="h-16 border-b border-slate-800 bg-[#0B0F19] flex items-center justify-between px-6 shrink-0 z-10">
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
-            <Zap className="h-4 w-4" />
-          </div>
-          <h1 className="text-sm font-semibold tracking-widest text-slate-100 uppercase">FlowSpeak Command Center</h1>
-        </div>
-        <div className="flex items-center gap-4 text-xs font-mono">
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-2 w-2">
-              {isConnected ? (
-                <>
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </>
-              ) : (
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-              )}
-            </span>
-            <span className={isConnected ? "text-emerald-400" : "text-red-400"}>
-              {isConnected ? "TELEMETRY_LINK" : "DISCONNECTED"}
-            </span>
-          </div>
-          <div className="h-4 w-px bg-slate-800"></div>
-          <span className="text-slate-400">ID: {authUser.fullName} ({authUser.role})</span>
-          <button onClick={handleLogout} className="ml-2 flex items-center gap-1 text-slate-500 hover:text-white transition-colors" title="Disconnect">
-            <LogOut className="h-4 w-4" />
-          </button>
-        </div>
-      </header>
+  const renderMainContent = () => {
+    if (activeView === 'dashboard') return <DashboardPanel />;
+    if (activeView === 'audit') return <AuditLogPanel />;
+    if (activeView === 'import') return <CsvImportPanel />;
 
-      {/* 3-Panel HUD Workspace */}
-      <main className="flex-1 grid grid-cols-1 lg:grid-cols-[300px_1fr_320px] min-h-0 overflow-hidden">
-        
-        {/* PANEL 1: LIVE LEDGER */}
-        <aside className="border-r border-slate-800 bg-[#0F1423] flex flex-col hidden lg:flex">
-          <div className="p-4 border-b border-slate-800/50 bg-[#0B0F19]/50">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-              <Activity className="h-4 w-4" /> Live Ledger
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-            {historyRef.current.length === 0 ? (
-              <p className="text-xs text-slate-600 font-mono text-center mt-10">No transactions recorded.</p>
+    return (
+      <main className="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden">
+        <div className="p-4 sm:p-6 lg:p-8 lg:h-full lg:flex lg:flex-col">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 w-full max-w-[1600px] mx-auto lg:flex-1 lg:min-h-0">
+        <aside className="order-2 lg:order-1 flex flex-col min-w-0 border border-slate-800/60 lg:border-r bg-[#0B0F19] lg:min-h-0 lg:h-full">
+          <PanelHeader icon={Activity} title="Live Ledger" badge="[STREAMING]" />
+          <div ref={ledgerScrollRef} className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-3 custom-scrollbar max-h-80 sm:max-h-96 lg:max-h-none">
+            {ledgerItems.length === 0 ? (
+              <p className="text-[11px] text-slate-600 font-mono text-center mt-10 uppercase tracking-wider">No transactions recorded.</p>
             ) : (
-              historyRef.current.map((txn, index) => (
-                <div key={txn.id || index} className="rounded-lg border border-slate-800 bg-[#151B2B] p-3 text-xs font-mono shadow-sm">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-slate-500">{formatLocal(txn.timestamp)}</span>
-                    {txn.status === 'SUCCESS' ? (
-                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                    ) : (
-                      <AlertCircle className="h-3 w-3 text-red-500" />
-                    )}
+              ledgerItems.map((txn, index) => {
+                const isLowStock = txnMatchesLowStockAlert(txn, lowStockAlerts);
+                const ledgerKey = getLedgerKeyForTxn(txn);
+                const isPulsing = highlightedLedgerKey && (
+                  highlightedLedgerKey === ledgerKey ||
+                  highlightedLedgerKey === (txn.entity || '').toLowerCase() ||
+                  highlightedLedgerKey === ledgerKey?.toUpperCase()
+                );
+                return (
+                  <div
+                    key={txn.id || index}
+                    ref={(el) => { if (el) ledgerRowRefs.current[ledgerKey] = el; }}
+                    className={`border border-slate-800/60 p-3 text-[11px] font-mono transition-all duration-150 ease-in-out ${
+                      isPulsing
+                        ? 'border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.05)]'
+                        : isLowStock
+                          ? 'border-amber-500/40 bg-amber-500/5'
+                          : 'bg-[#0E1422]/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="text-slate-500 tabular-nums">{formatLocal(txn.timestamp)}</span>
+                      <div className="flex items-center gap-1.5">
+                        {isLowStock && (
+                          <span className="text-[9px] uppercase tracking-wider text-amber-400">LOW STOCK</span>
+                        )}
+                        {txn.status === 'SUCCESS' ? (
+                          <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                        ) : (
+                          <AlertCircle className="h-3 w-3 text-rose-500" />
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-slate-100 min-w-0">
+                      <span className="text-slate-500">INTENT: </span>
+                      <span className={`break-all ${txn.status === 'SUCCESS' ? 'text-emerald-400' : txn.eventType === 'LOW_STOCK_ALERT' ? 'text-amber-400' : 'text-rose-500'}`}>
+                        {txn.intent || txn.eventType}
+                      </span>
+                    </div>
+                    <div className="text-slate-400 mt-1 min-w-0">
+                      <span className="text-slate-500">ENTITY: </span>
+                      <span className="break-all">{txn.entity}</span>
+                    </div>
                   </div>
-                  <div className="text-slate-300">
-                    <span className="text-slate-500">INTENT: </span>
-                    <span className={txn.status === 'SUCCESS' ? 'text-emerald-400' : 'text-red-400'}>{txn.intent}</span>
-                  </div>
-                  <div className="text-slate-300 mt-1 truncate">
-                    <span className="text-slate-500">ENTITY: </span>
-                    {txn.entity}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </aside>
 
-        {/* PANEL 2: COMMAND CHAT */}
-        <section className="flex flex-col bg-[#0B0F19] relative min-h-0 overflow-hidden">
-          
-          {/* Background subtle gradient for depth */}
-          <div className="absolute inset-0 bg-gradient-to-b from-blue-900/5 to-transparent pointer-events-none"></div>
-
-          <div ref={chatScrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar z-10">
+        <section className="order-1 lg:order-2 flex flex-col min-h-[min(56vh,520px)] lg:min-h-0 lg:h-full bg-[#0B0F19] border border-slate-800/60 overflow-hidden">
+          <PanelHeader icon={Cpu} title="Execution Engine" badge="[SYSTEM_READY]" />
+          <div ref={chatScrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 sm:p-5 space-y-3 sm:space-y-4 custom-scrollbar">
             {chat.map((msg) => (
-              <div key={msg.id} className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div key={msg.id} className={`flex w-full min-w-0 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'user' ? (
-                  <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-blue-600 px-5 py-3.5 text-white shadow-lg shadow-blue-900/20">
-                    <p className="text-[15px] leading-relaxed">{msg.text}</p>
+                  <div className="max-w-full sm:max-w-[85%] lg:max-w-[80%] min-w-0 border border-emerald-500/30 bg-[#0E1422]/50 px-3 sm:px-4 py-3 text-slate-100 transition-all duration-150 ease-in-out">
+                    <p className="font-mono text-xs sm:text-sm leading-relaxed break-words">{msg.text}</p>
                   </div>
                 ) : (
-                  <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-[#151B2B] border border-slate-700/50 px-5 py-4 shadow-lg shadow-black/20">
-                    <div className="flex items-center gap-2 mb-2 text-xs font-mono uppercase tracking-wide">
-                      <Cpu className="h-3.5 w-3.5 text-slate-400" />
-                      <span className="text-slate-400">Execution Engine</span>
-                      <span className="text-slate-600 px-1">•</span>
-                      <span className={msg.status === 'SUCCESS' ? 'text-emerald-400' : 'text-red-400'}>
+                  <div className="max-w-full sm:max-w-[90%] lg:max-w-[85%] min-w-0 border border-slate-800/60 bg-[#0E1422]/50 px-3 sm:px-4 py-3 transition-all duration-150 ease-in-out">
+                    <div className="flex items-center gap-2 mb-2 font-mono text-[10px] uppercase tracking-widest min-w-0 overflow-x-auto">
+                      <Cpu className="h-3 w-3 text-slate-500 shrink-0" />
+                      <span className="text-slate-400 shrink-0 leading-none">Execution Engine</span>
+                      <span className="text-slate-700 shrink-0 leading-none">·</span>
+                      <span className={`shrink-0 leading-none whitespace-nowrap ${intentStatusClass(msg.status)}`}>
                         [{msg.intent}]
                       </span>
+                      {msg.status === 'FORBIDDEN' && <ShieldAlert className="h-3 w-3 text-amber-400 shrink-0" />}
                     </div>
-                    <p className="text-[15px] leading-relaxed text-slate-200 whitespace-pre-wrap">{msg.text}</p>
+                    <p className="font-mono text-xs sm:text-sm leading-relaxed text-slate-100 whitespace-pre-wrap break-words">{msg.text}</p>
                   </div>
                 )}
               </div>
             ))}
           </div>
 
-          {/* Input Area */}
-          <div className="p-6 bg-[#0B0F19] border-t border-slate-800 z-10">
-            <form onSubmit={submitMessage} className="relative flex items-center">
+          <div className="shrink-0 p-4 sm:p-5 border-t border-slate-800/60 bg-[#0B0F19]">
+            <form onSubmit={submitMessage} className="flex flex-col gap-2 sm:block sm:relative">
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Execute a command... (e.g. 'Reserve 5 Dell Laptops')"
+                placeholder="Execute a command..."
                 autoFocus
-                className="w-full rounded-2xl bg-[#151B2B] border border-slate-700 py-4 pl-5 pr-16 text-[15px] text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all shadow-inner"
+                className="w-full bg-slate-950/40 border border-slate-800/60 py-3 pl-3 sm:pl-4 pr-3 sm:pr-14 font-mono text-xs sm:text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500/50 focus:outline-none focus:shadow-[0_0_15px_rgba(16,185,129,0.05)] transition-all duration-150 ease-in-out"
               />
               <button
                 type="submit"
                 disabled={loading || !input.trim()}
-                className="absolute right-2 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white transition-transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100"
+                className="w-full sm:w-auto sm:absolute sm:right-1.5 sm:top-1/2 sm:-translate-y-1/2 flex h-10 sm:h-9 sm:w-9 items-center justify-center gap-2 border border-emerald-500/40 bg-[#0E1422]/80 text-emerald-400 font-mono text-[10px] sm:text-inherit uppercase sm:normal-case tracking-widest sm:tracking-normal transition-all duration-150 ease-in-out hover:border-emerald-500/60 hover:bg-emerald-500/10 hover:shadow-[0_0_15px_rgba(16,185,129,0.05)] disabled:opacity-40 disabled:hover:shadow-none disabled:hover:bg-[#0E1422]/80"
               >
-                <Send className="h-4 w-4 ml-0.5" />
+                <Send className="h-3.5 w-3.5" />
+                <span className="sm:hidden">{loading ? 'Processing...' : 'Execute'}</span>
               </button>
             </form>
           </div>
         </section>
 
-        {/* PANEL 3: CONTEXT CARDS */}
-        <aside className="border-l border-slate-800 bg-[#0F1423] flex flex-col hidden lg:flex">
-          <div className="p-4 border-b border-slate-800/50 bg-[#0B0F19]/50">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-              <Database className="h-4 w-4" /> Live Context
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
+        <aside className="order-3 flex flex-col min-w-0 border border-slate-800/60 lg:border-l bg-[#0B0F19] lg:min-h-0 lg:h-full">
+          <PanelHeader
+            icon={Database}
+            title="Live Context"
+            badge={activeContext ? '[BOUND]' : '[IDLE]'}
+            badgeClassName={activeContext ? 'text-emerald-400' : 'text-slate-500'}
+          />
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-4 custom-scrollbar">
             {!activeContext ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-600 space-y-4 opacity-50">
-                <Package className="h-12 w-12" />
-                <p className="text-xs font-mono uppercase text-center">No active record in context.<br/>Query a product to load.</p>
+              <div className="h-full flex flex-col items-center justify-center gap-4 text-slate-600">
+                <Package className="h-10 w-10 text-slate-700" />
+                <p className="text-[10px] font-mono uppercase tracking-widest text-center text-slate-500 leading-relaxed">
+                  No active record in context.<br />Query a product to load.
+                </p>
               </div>
             ) : activeContext.type === 'order' ? (
-              /* ORDER RECEIPT CARD */
-              <div className="rounded-xl bg-[#1A2235] border border-slate-700/60 overflow-hidden shadow-2xl">
-                <div className="bg-gradient-to-r from-blue-900 to-indigo-900 p-5 border-b border-slate-700/60 relative overflow-hidden">
-                  <div className="absolute -right-4 -top-4 opacity-10">
-                    <CheckCircle2 className="h-24 w-24" />
-                  </div>
-                  <p className="text-xs uppercase tracking-widest text-blue-300 font-semibold relative z-10">Order Receipt</p>
-                  <h3 className="text-xl font-bold text-white relative z-10 mt-1">{activeContext.orderNumber}</h3>
+              <div className="border border-slate-800/60 bg-[#0E1422]/50 overflow-hidden">
+                <div className="p-4 border-b border-slate-800/60 bg-slate-950/40">
+                  <p className="font-mono text-[10px] uppercase tracking-widest text-emerald-400/80">Order Receipt</p>
+                  <h3 className="font-mono text-base sm:text-lg text-slate-100 mt-1 break-all">{activeContext.orderNumber}</h3>
                 </div>
-                
-                <div className="p-5 space-y-5">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Status</p>
-                    <span className="rounded-full bg-amber-500/20 text-amber-400 px-3 py-1 text-xs font-bold uppercase">{activeContext.status}</span>
+                <div className="p-4 space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500">Status</p>
+                    <span className="font-mono text-[10px] uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2.5 py-1">{activeContext.status}</span>
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">Product</p>
-                    <p className="text-sm text-slate-200">{activeContext.productName}</p>
-                    <p className="text-xs font-mono text-slate-500 mt-0.5">{activeContext.productSKU}</p>
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500 mb-1">Product</p>
+                    <p className="font-mono text-sm text-slate-100 break-words">{activeContext.productName}</p>
+                    <p className="font-mono text-[11px] text-slate-400 mt-0.5 break-all">{activeContext.productSKU}</p>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4 pt-1">
                     <div>
-                      <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">Qty Reserved</p>
-                      <p className="text-2xl font-mono text-white">{activeContext.quantity}</p>
+                      <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500 mb-1">Qty Reserved</p>
+                      <p className="font-mono text-xl text-slate-100 tabular-nums">{activeContext.quantity}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">Total</p>
-                      <p className="text-2xl font-light text-emerald-400">${activeContext.totalAmount?.toFixed(2)}</p>
+                      <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500 mb-1">Total</p>
+                      <p className="font-mono text-xl text-emerald-400 tabular-nums">${activeContext.totalAmount?.toFixed(2)}</p>
                     </div>
                   </div>
                 </div>
-
-                <div className="p-4 bg-[#151B2B] border-t border-slate-700/60 text-center">
-                  <p className="text-[10px] uppercase font-mono text-slate-500">Order Logged to SQL Server</p>
+                <div className="p-3 border-t border-slate-800/60 bg-slate-950/40 text-center">
+                  <p className="font-mono text-[9px] uppercase tracking-widest text-slate-500">Order Logged to Database</p>
                 </div>
               </div>
             ) : (
-              /* PRODUCT CONTEXT CARD */
-              <div className="rounded-xl bg-[#1A2235] border border-slate-700/60 overflow-hidden shadow-2xl">
-                <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-5 border-b border-slate-700/60 relative overflow-hidden">
-                  <div className="absolute -right-4 -top-4 opacity-10">
-                    <Package className="h-24 w-24" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-white relative z-10 leading-tight">{activeContext.name}</h3>
-                  <div className="mt-2 flex items-center gap-2 relative z-10">
-                    <Tag className="h-3 w-3 text-slate-400" />
-                    <span className="text-xs font-mono text-slate-400 uppercase tracking-widest">{activeContext.sku}</span>
+              <div className="border border-slate-800/60 bg-[#0E1422]/50 overflow-hidden">
+                <div className="p-4 border-b border-slate-800/60 bg-slate-950/40">
+                  <h3 className="font-mono text-sm sm:text-base text-slate-100 leading-snug break-words">{activeContext.name}</h3>
+                  <div className="mt-2 flex items-center gap-2 min-w-0">
+                    <Tag className="h-3 w-3 text-slate-500 shrink-0" />
+                    <span className="font-mono text-[10px] text-slate-400 uppercase tracking-widest break-all">{activeContext.sku}</span>
                   </div>
                 </div>
-                
-                <div className="p-5 space-y-6">
+                <div className="p-4 space-y-4">
                   <div>
-                    <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-1">Pricing</p>
-                    <p className="text-3xl font-light text-white">${activeContext.price?.toFixed(2)}</p>
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500 mb-1">Pricing</p>
+                    <p className="font-mono text-2xl text-slate-100 tabular-nums">${activeContext.price?.toFixed(2)}</p>
                   </div>
-                  
                   <div>
-                    <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">Inventory Status</p>
-                    <div className="flex items-center justify-between">
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500 mb-2">Inventory Status</p>
+                    <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-2">
-                        <div className={`h-2.5 w-2.5 rounded-full ${activeContext.stockQuantity > 0 ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]' : 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)]'}`}></div>
-                        <span className="text-sm font-medium text-slate-300">
+                        <div className={`h-2 w-2 rounded-full ${activeContext.stockQuantity > 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                        <span className="font-mono text-[11px] text-slate-400 uppercase tracking-wider">
                           {activeContext.stockQuantity > 0 ? 'In Stock' : 'Out of Stock'}
                         </span>
                       </div>
-                      <span className="text-xl font-mono text-white">{activeContext.stockQuantity}</span>
+                      <span className="font-mono text-lg text-slate-100 tabular-nums">{activeContext.stockQuantity}</span>
                     </div>
-                    <div className="mt-3 h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-1000 ${activeContext.stockQuantity > 20 ? 'bg-emerald-500' : activeContext.stockQuantity > 0 ? 'bg-amber-500' : 'bg-red-500'}`}
+                    <div className="mt-3 h-1 w-full bg-slate-800/80 overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-150 ease-in-out ${activeContext.stockQuantity > 20 ? 'bg-emerald-500' : activeContext.stockQuantity > 0 ? 'bg-amber-400' : 'bg-rose-500'}`}
                         style={{ width: `${Math.min((activeContext.stockQuantity / 100) * 100, 100)}%` }}
-                      ></div>
+                      />
                     </div>
                   </div>
                 </div>
-
-                <div className="p-4 bg-[#151B2B] border-t border-slate-700/60 text-center">
-                  <p className="text-[10px] uppercase font-mono text-slate-500">Live Database Binding Active</p>
+                <div className="p-3 border-t border-slate-800/60 bg-slate-950/40 text-center">
+                  <p className="font-mono text-[9px] uppercase tracking-widest text-slate-500">Live Database Binding Active</p>
                 </div>
               </div>
             )}
           </div>
         </aside>
-
+          </div>
+        </div>
       </main>
-      
-      {/* Global styles for custom scrollbars */}
-      <style dangerouslySetInnerHTML={{__html: `
+    );
+  };
+
+  return (
+    <div className="h-screen w-full bg-[#0B0F19] text-slate-300 font-sans overflow-hidden flex flex-col">
+      <header className="shrink-0 border-b border-slate-800/60 bg-[#0B0F19] flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-5 py-3 z-10">
+        <div className="flex items-center justify-between sm:justify-start gap-3 sm:gap-5 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+              <Zap className="h-3.5 w-3.5" />
+            </div>
+            <h1 className="font-mono text-[10px] sm:text-[11px] font-semibold tracking-widest text-slate-100 uppercase truncate">FlowSpeak Command Center</h1>
+          </div>
+
+          <nav className="flex items-center gap-1 shrink-0 overflow-x-auto">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeView === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveView(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest transition-all duration-150 ease-in-out border ${
+                    isActive
+                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.05)]'
+                      : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-800/60 hover:bg-[#0E1422]/50'
+                  }`}
+                >
+                  <Icon className="h-3 w-3" />
+                  <span className="hidden md:inline">{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-[9px] sm:text-[10px] uppercase tracking-wider">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="relative flex h-1.5 w-1.5">
+              {isConnected ? (
+                <>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                </>
+              ) : (
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-rose-500" />
+              )}
+            </span>
+            <span className={isConnected ? 'text-emerald-400' : 'text-rose-500'}>
+              {isConnected ? 'TELEMETRY_LINK' : 'DISCONNECTED'}
+            </span>
+          </div>
+          <div className="h-3.5 w-px bg-slate-800/60" />
+          <span className="text-slate-400 normal-case tracking-normal truncate max-w-[140px] sm:max-w-none">ID: {authUser.fullName} ({authUser.role})</span>
+          <button
+            onClick={handleLogout}
+            className="ml-1 flex items-center gap-1 text-slate-500 hover:text-slate-100 transition-all duration-150 ease-in-out"
+            title="Disconnect"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </header>
+
+      <div
+        className={`shrink-0 overflow-hidden transition-all duration-150 ease-in-out border-b border-amber-500/30 bg-amber-500/5 ${
+          bannerVisible && lowStockAlerts.length > 0
+            ? 'max-h-48 opacity-100 translate-y-0'
+            : 'max-h-0 opacity-0 -translate-y-1 border-b-0'
+        }`}
+      >
+        {lowStockAlerts.map((alert) => (
+          <div
+            key={alert.id}
+            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 px-4 sm:px-5 py-2 border-b border-amber-500/20 last:border-b-0"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <AlertTriangle className={`h-3 w-3 shrink-0 ${alert.status === 'CRITICAL' ? 'text-rose-500' : 'text-amber-400'}`} />
+              <p className="text-[11px] font-mono text-slate-300 truncate">
+                <span className="text-amber-400 uppercase tracking-wider mr-2">Low Stock</span>
+                <button
+                  type="button"
+                  onClick={() => focusLedgerForAlert(alert)}
+                  className="text-slate-100 hover:text-emerald-400 transition-all duration-150 ease-in-out"
+                >
+                  {alert.name}
+                </button>
+                <span className="text-slate-600 mx-1.5">·</span>
+                <button
+                  type="button"
+                  onClick={() => focusLedgerForAlert(alert)}
+                  className="text-slate-400 hover:text-emerald-400 transition-all duration-150 ease-in-out"
+                >
+                  {alert.sku}
+                </button>
+                <span className="text-slate-600 mx-1.5">·</span>
+                <span className={alert.stockQuantity === 0 ? 'text-rose-500' : 'text-amber-400'}>
+                  {alert.stockQuantity} unit{alert.stockQuantity === 1 ? '' : 's'}
+                </span>
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => dismissLowStockAlert(alert.id)}
+              className="shrink-0 flex items-center gap-1 px-2.5 py-1 border border-amber-500/30 text-[9px] font-mono font-semibold uppercase tracking-wider text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 transition-all duration-150 ease-in-out"
+            >
+              <X className="h-3 w-3" /> Dismiss
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+        {renderMainContent()}
+      </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #334155; }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
       `}} />
     </div>
   );

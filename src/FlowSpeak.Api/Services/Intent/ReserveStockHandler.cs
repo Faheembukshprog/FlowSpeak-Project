@@ -13,6 +13,7 @@ namespace FlowSpeak.Api.Services.Intent
         private readonly Channel<TelemetryMessage> _telemetryChannel;
 
         public string IntentName => "RESERVE_STOCK";
+        public IReadOnlyList<string> AllowedRoles => new[] { "Admin", "Sales" };
 
         public ReserveStockHandler(IOrderService orderService, Channel<TelemetryMessage> telemetryChannel)
         {

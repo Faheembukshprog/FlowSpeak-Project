@@ -51,6 +51,11 @@ namespace FlowSpeak.Api.Controllers
                 response.TraceId   = traceId;
                 response.Timestamp = DateTime.UtcNow;
 
+                if (!response.Success && response.ErrorCode == ErrorCodes.Forbidden)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, response);
+                }
+
                 await LogIntentAsync(request, response, response.Success, response.Success ? null : response.Message);
                 return response.Success ? Ok(response) : BadRequest(response);
             }
@@ -128,6 +133,11 @@ namespace FlowSpeak.Api.Controllers
 
                 if (!response.Success && string.IsNullOrEmpty(response.ErrorCode))
                     response.ErrorCode = ErrorCodes.DispatchFailed;
+
+                if (!response.Success && response.ErrorCode == ErrorCodes.Forbidden)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, response);
+                }
 
                 await LogIntentAsync(intentRequest, response, response.Success, response.Success ? null : response.Message);
                 return response.Success ? Ok(response) : BadRequest(response);

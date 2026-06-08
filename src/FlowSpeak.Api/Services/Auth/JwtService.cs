@@ -26,19 +26,36 @@ namespace FlowSpeak.Api.Services.Auth
     /// </summary>
     public class JwtService : IJwtService
     {
+        private const string DevFallbackSecret = "CHANGE-ME-FlowSpeak-256bit-Secret-Key!!";
+
         private readonly byte[] _keyBytes;
         private readonly string _issuer;
         private readonly string _audience;
 
+        public static string ResolveSecret(IConfiguration config)
+        {
+            var secret = config["JWT_SECRET"] ?? config["Jwt:Secret"];
+            if (IsUsableSecret(secret)) return secret!;
+
+            var env = config["ASPNETCORE_ENVIRONMENT"]
+                   ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+                   ?? "Production";
+            if (env.Equals("Development", StringComparison.OrdinalIgnoreCase))
+                return DevFallbackSecret;
+
+            throw new InvalidOperationException(
+                "JWT_SECRET must be at least 32 characters (256 bits) for HMAC-SHA256. " +
+                "Set JWT_SECRET via environment variable or user secrets.");
+        }
+
+        private static bool IsUsableSecret(string? secret) =>
+            !string.IsNullOrWhiteSpace(secret)
+            && secret.Length >= 32
+            && !secret.StartsWith("SET_VIA_", StringComparison.OrdinalIgnoreCase);
+
         public JwtService(IConfiguration config)
         {
-            var secret = config["JWT_SECRET"]
-                         ?? config["Jwt:Secret"]
-                         ?? "CHANGE-ME-FlowSpeak-256bit-Secret-Key!!"; // Fallback for dev
-
-            if (secret.Length < 32)
-                throw new InvalidOperationException("JWT_SECRET must be at least 32 characters (256 bits) for HMAC-SHA256.");
-
+            var secret = ResolveSecret(config);
             _keyBytes = Encoding.UTF8.GetBytes(secret);
             _issuer = config["Jwt:Issuer"] ?? "FlowSpeak.Api";
             _audience = config["Jwt:Audience"] ?? "FlowSpeak.Client";

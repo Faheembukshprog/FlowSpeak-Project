@@ -12,6 +12,7 @@ namespace FlowSpeak.Api.Services.Intent
         private readonly Channel<TelemetryMessage> _telemetryChannel;
 
         public string IntentName => "CHECK_STOCK";
+        public IReadOnlyList<string> AllowedRoles => new[] { "Admin", "Sales", "Viewer" };
 
         public CheckStockHandler(IProductService productService, Channel<TelemetryMessage> telemetryChannel)
         {
@@ -22,9 +23,20 @@ namespace FlowSpeak.Api.Services.Intent
         public async Task<ActionResponse> HandleAsync(IntentRequest request)
         {
             var searchTerm = request.Entity;
-            if (string.IsNullOrWhiteSpace(searchTerm) && request.Parameters != null && request.Parameters.ContainsKey("productName"))
+
+            if (request.Parameters != null)
             {
-                searchTerm = request.Parameters["productName"];
+                // Prefer explicit SKU when provided (e.g. NL query "product SKU 12345")
+                if (request.Parameters.TryGetValue("sku", out var sku) && !string.IsNullOrWhiteSpace(sku))
+                {
+                    searchTerm = sku.Trim();
+                }
+                else if (string.IsNullOrWhiteSpace(searchTerm)
+                         && request.Parameters.TryGetValue("productName", out var productName)
+                         && !string.IsNullOrWhiteSpace(productName))
+                {
+                    searchTerm = productName.Trim();
+                }
             }
 
             if (string.IsNullOrWhiteSpace(searchTerm))

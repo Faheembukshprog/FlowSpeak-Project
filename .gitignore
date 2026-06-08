@@ -44,6 +44,9 @@ obj/
 .vscode/
 *.log
 *.sqlite
+*.db
+*.db-shm
+*.db-wal
 *.mdf
 *.ldf
 

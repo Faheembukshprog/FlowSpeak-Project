@@ -68,5 +68,6 @@ namespace FlowSpeak.Api.Models.DTOs
         public const string AiFailure       = "AI_FAILURE";
         public const string ServerError     = "SERVER_ERROR";
         public const string RateLimited     = "RATE_LIMITED";
+        public const string Forbidden       = "FORBIDDEN";
     }
 }

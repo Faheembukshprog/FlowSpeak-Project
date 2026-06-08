@@ -17,10 +17,18 @@ var builder   = WebApplication.CreateBuilder(args);
 // ── Database ─────────────────────────────────────────────────────────────────
 var connectionString = builder.Configuration["DB_CONNECTION_STRING"]
                     ?? builder.Configuration.GetConnectionString("DefaultConnection")
-                    ?? "Data Source=flowspeak.db";
+                    ?? "Server=DESKTOP-S4UPLER;Database=FlowSpeakDb;Integrated Security=True;TrustServerCertificate=True;Encrypt=True";
 
-builder.Services.AddDbContext<FlowSpeak.Api.Data.ApplicationDbContext>(
-    options => options.UseSqlite(connectionString));
+var useSqlite = connectionString.TrimStart().StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase)
+             && !connectionString.Contains("Server=", StringComparison.OrdinalIgnoreCase);
+
+builder.Services.AddDbContext<FlowSpeak.Api.Data.ApplicationDbContext>(options =>
+{
+    if (useSqlite)
+        options.UseSqlite(connectionString);
+    else
+        options.UseSqlServer(connectionString);
+});
 
 // ── Rate Limiting ─────────────────────────────────────────────────────────────
 // Policy 1: intent_per_user — 20 requests / 60 s sliding window, keyed by JWT sub
@@ -105,6 +113,7 @@ builder.Services.AddSingleton(Channel.CreateBounded<TelemetryMessage>(
     }));
 
 builder.Services.AddHostedService<TelemetryProcessingEngine>();
+builder.Services.AddHostedService<FlowSpeak.Api.Services.Telemetry.LowStockAlertService>();
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 builder.Services.AddCors(options =>
@@ -128,9 +137,7 @@ builder.Services.AddCors(options =>
 });
 
 // ── JWT Authentication ────────────────────────────────────────────────────────
-var jwtSecret  = builder.Configuration["JWT_SECRET"]
-              ?? builder.Configuration["Jwt:Secret"]
-              ?? "CHANGE-ME-FlowSpeak-256bit-Secret-Key!!";
+var jwtSecret   = FlowSpeak.Api.Services.Auth.JwtService.ResolveSecret(builder.Configuration);
 var jwtKeyBytes = Encoding.UTF8.GetBytes(jwtSecret);
 
 builder.Services.AddAuthentication(options =>
@@ -168,11 +175,16 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 
 // ── Service Registrations ─────────────────────────────────────────────────────
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<FlowSpeak.Api.Services.IProductService,       FlowSpeak.Api.Services.ProductService>();
 builder.Services.AddScoped<FlowSpeak.Api.Services.IOrderService,         FlowSpeak.Api.Services.OrderService>();
 builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentDispatcher, FlowSpeak.Api.Services.Intent.IntentDispatcher>();
 builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler, FlowSpeak.Api.Services.Intent.CheckStockHandler>();
 builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler, FlowSpeak.Api.Services.Intent.ReserveStockHandler>();
+builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler, FlowSpeak.Api.Services.Intent.GetOrderStatusHandler>();
+builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler, FlowSpeak.Api.Services.Intent.CancelOrderHandler>();
+builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler, FlowSpeak.Api.Services.Intent.UpdateStockHandler>();
+builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler, FlowSpeak.Api.Services.Intent.AddProductHandler>();
 builder.Services.AddScoped<FlowSpeak.Api.Services.IProductLookupService, FlowSpeak.Api.Services.ProductLookupService>();
 builder.Services.AddHttpClient<FlowSpeak.Api.Services.AI.IAIProvider, FlowSpeak.Api.Services.AI.LlmAIProvider>(
     client => { client.Timeout = TimeSpan.FromSeconds(10); });
@@ -283,7 +295,7 @@ app.MapGet("/api/health/ready", async (
     try
     {
         await db.Database.ExecuteSqlRawAsync("SELECT 1");
-        checks.Add(new { name = "database", status = "healthy", detail = "SQLite ping ok" });
+        checks.Add(new { name = "database", status = "healthy", detail = useSqlite ? "SQLite ping ok" : "SQL Server ping ok" });
     }
     catch (Exception ex)
     {
