@@ -59,9 +59,30 @@ chmod +x setup.sh
 
 ## 📐 Completed Full-Stack Architecture
 
-- **Frontend (`/flowspeak-ui`):** React 18 single-page application built on Vite with Tailwind CSS v4. Features a 3-tab layout containing an interactive conversational AI space, a chronological ledger, and telemetry.
+- **Frontend (`/flowspeak-ui`):** React 18 single-page application built on Vite with Tailwind CSS v4. Features a responsive 3-panel tactical HUD, role-gated navigation tabs, and real-time SignalR telemetry streaming.
 - **Backend (`/src/FlowSpeak.Api`):** High-throughput C# REST API deploying explicit CORS policies mapping to `localhost:5173`.
 - **Database Layer (`AI_CommandLogs`):** Relational SQL tracking data structures mapping client intents, parsed parameters, payload records, and exact database state transitions.
+
+### Architecture & Layout Engine
+
+The Command Center view (`App.jsx`) uses a mobile-first responsive grid that scales from a vertical stack into a triple-column tactical HUD:
+
+| Viewport | Grid | Layout |
+| :--- | :--- | :--- |
+| **Mobile / Tablet** | `grid-cols-1` | Panels stack vertically. Execution Engine (`order-1`) renders first; Live Ledger (`order-2`) and Live Context (`order-3`) follow below. |
+| **Desktop (`lg:`)** | `lg:grid-cols-3` | Three equal columns: **Live Ledger** (left), **Execution Engine** (center), **Live Context** (right). Full-height panels with independent scroll regions. |
+
+The grid is capped at `max-w-[1600px]` and uses `lg:flex-1 lg:min-h-0` to fill the viewport without overflow. Role-based tabs (Command, Dashboard, Audit Log, Import) swap the main content area while preserving the global header and telemetry link.
+
+### Visual Baseline & Aesthetics
+
+The UI enforces a strict technical dark-mode design system:
+
+- **Foundation:** Deep slate canvas `bg-[#0B0F19]` with elevated surfaces at `bg-[#0E1422]/50` and `bg-slate-950/40`.
+- **Borders:** Razor-thin `border-slate-800/60` dividers; accent borders use emerald (`border-emerald-500/30`) or amber (`border-amber-500/40`) at low opacity.
+- **Typography:** Monospace (`font-mono`) for all telemetry, ledger entries, intent labels, and panel headers. Sans-serif reserved for the root shell only.
+- **Baseline alignment:** Panel headers use `shrink-0` with synchronized `leading-none` icon/text pairs; status badges and tabular data use `tabular-nums` for column stability.
+- **Motion:** Uniform `transition-all duration-150 ease-in-out` on interactive elements; custom scrollbar styling via `.custom-scrollbar`.
 
 ## ✅ Runtime Execution Guide
 
@@ -81,9 +102,23 @@ npm run dev
 
 ---
 
-## 🧪 Testing & Validation (TestSprite)
+## 🧪 Developer Setup & Testing
 
-The authentication pipeline (Register, Login, Refresh, Logout) and telemetry endpoints have been hardened and verified via automated integration tests using the TestSprite MCP suite. 
+### MCP Server Environment
+
+FlowSpeak development integrates three Model Context Protocol (MCP) servers for agentic testing and visual validation inside Cursor:
+
+| MCP Server | Purpose |
+| :--- | :--- |
+| **Puppeteer MCP** | Automated visual regression checks and headless UI screenshot auditing against the Vite dev server (`localhost:5173`). |
+| **Chrome Inspect MCP** | Real-time DOM telemetry and active CSS layout debugging on live browser sessions. |
+| **TestSprite MCP** | Agentic end-to-end flow verification and integration testing across the auth pipeline and API endpoints. |
+
+Configure these servers in your Cursor MCP settings before running agent-driven test workflows.
+
+### TestSprite Integration Tests
+
+The authentication pipeline (Register, Login, Refresh, Logout) and telemetry endpoints have been hardened and verified via automated integration tests using the TestSprite MCP suite.
 
 To run tests (requires `testsprite-mcp` configured):
 ```bash
