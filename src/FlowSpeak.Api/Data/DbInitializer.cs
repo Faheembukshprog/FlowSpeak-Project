@@ -42,31 +42,10 @@ namespace FlowSpeak.Api.Data
         private static async Task SeedUsersAsync(ApplicationDbContext context)
         {
             if (await context.AppUsers.AnyAsync()) return;
-
-            var users = new List<AppUser>
-            {
-                new()
-                {
-                    Username     = "admin",
-                    FullName     = "Admin User",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
-                    Role         = "Admin",
-                    PhoneNumber  = "+923001234567",
-                    IsActive     = true
-                },
-                new()
-                {
-                    Username     = "sales",
-                    FullName     = "Sales Rep One",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("sales123"),
-                    Role         = "Sales",
-                    PhoneNumber  = "+923009876543",
-                    IsActive     = true
-                }
-            };
-
-            await context.AppUsers.AddRangeAsync(users);
-            await context.SaveChangesAsync();
+            
+            // Static demo accounts ('admin' and 'sales') have been removed for security.
+            // In production, provision the initial administrative user via environment variables 
+            // or a secure registration flow.
         }
 
         // ── Products ──────────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 using FlowSpeak.Api.Data;
 using FlowSpeak.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace FlowSpeak.Api.Services
 {
@@ -8,11 +9,13 @@ namespace FlowSpeak.Api.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly IProductLookupService _productLookupService;
+        private readonly ILogger<ProductService> _logger;
 
-        public ProductService(ApplicationDbContext context, IProductLookupService productLookupService)
+        public ProductService(ApplicationDbContext context, IProductLookupService productLookupService, ILogger<ProductService> logger)
         {
             _context = context;
             _productLookupService = productLookupService;
+            _logger = logger;
         }
 
         public async Task<List<Product>> GetProductBySearchAsync(string searchTerm)
@@ -50,7 +53,15 @@ namespace FlowSpeak.Api.Services
             product.StockQuantity -= quantity;
             product.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                _logger.LogError(ex, "Concurrency conflict during stock reservation for {SKU}", product.SKU);
+                throw new InvalidOperationException("Inventory was updated by another user. Please retry.", ex);
+            }
 
             // Map to clean model structure for return
             return new Product

@@ -65,6 +65,15 @@ yarn-error.log*
 .env.production.local
 .npm/
 
+# Sensitive local app configuration
+appsettings.json
+appsettings.*.json
+!appsettings.example.json
+!appsettings.Template.json
+!src/FlowSpeak.Api/appsettings.example.json
+.user-secrets/
+**/.user-secrets/
+
 # IDEs and Editors
 .idea/
 *.swp

@@ -13,6 +13,9 @@ using Scalar.AspNetCore;
 
 var startedAt = DateTime.UtcNow;
 var builder   = WebApplication.CreateBuilder(args);
+var disableRateLimitingForDevelopment =
+    builder.Environment.IsDevelopment() &&
+    builder.Configuration.GetValue<bool>("RateLimiting:DisableForDevelopment");
 
 // ── Database ─────────────────────────────────────────────────────────────────
 var connectionString = builder.Configuration["DB_CONNECTION_STRING"]
@@ -120,19 +123,19 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("FlowSpeakCORS", policy =>
     {
-        var frontendUrl = builder.Configuration["FRONTEND_URL"] ?? "";
-        if (!string.IsNullOrEmpty(frontendUrl))
+        var frontendUrl = builder.Configuration["FRONTEND_URL"];
+        if (string.IsNullOrWhiteSpace(frontendUrl) && !builder.Environment.IsDevelopment())
         {
-            policy.WithOrigins(frontendUrl,
-                               "http://localhost:5000", "https://localhost:5000",
-                               "http://localhost:5173", "https://localhost:5173")
-                  .AllowAnyMethod().AllowAnyHeader().AllowCredentials();
+            throw new InvalidOperationException(
+                "FRONTEND_URL must be configured outside Development when credentialed CORS is enabled.");
         }
-        else
-        {
-            policy.SetIsOriginAllowed(_ => true)
-                  .AllowAnyMethod().AllowAnyHeader().AllowCredentials();
-        }
+
+        var allowedOrigins = string.IsNullOrWhiteSpace(frontendUrl)
+            ? new[] { "http://localhost:5000", "https://localhost:5000", "http://localhost:5173", "https://localhost:5173" }
+            : new[] { frontendUrl };
+
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyMethod().AllowAnyHeader().AllowCredentials();
     });
 });
 
@@ -266,8 +269,11 @@ if (app.Environment.IsDevelopment())
 // ── Middleware pipeline (order is critical) ───────────────────────────────────
 app.UseRouting();
 app.UseCors("FlowSpeakCORS");
-app.UseRateLimiter();       // ← rate limiting BEFORE auth
 app.UseAuthentication();
+if (!disableRateLimitingForDevelopment)
+{
+    app.UseRateLimiter();
+}
 app.UseAuthorization();
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -340,6 +346,7 @@ app.MapGet("/api/health/ready", async (
         checks,
         rateLimiting = new
         {
+            enabled = !disableRateLimitingForDevelopment,
             intentPolicy = "20 req / 60s sliding window (per user)",
             authPolicy   = "10 req / 60s fixed window (per IP)",
         }

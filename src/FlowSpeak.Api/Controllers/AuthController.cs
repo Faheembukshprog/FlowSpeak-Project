@@ -28,7 +28,7 @@ namespace FlowSpeak.Api.Controllers
         }
 
         // ── DTOs ────────────────────────────────────────────────────────────
-        public record RegisterRequest(string Username, string Password, string FullName, string Role = "Viewer");
+        public record RegisterRequest(string Username, string Password, string FullName);
         public record LoginRequest(string Username, string Password);
 
         /// <summary>
@@ -53,7 +53,7 @@ namespace FlowSpeak.Api.Controllers
                 Username     = req.Username,
                 FullName     = req.FullName ?? req.Username,
                 PasswordHash = HashPassword(req.Password),
-                Role         = ValidateRole(req.Role),
+                Role         = "Viewer",
                 PhoneNumber  = Guid.NewGuid().ToString(),
                 IsActive     = true
             };
@@ -89,7 +89,7 @@ namespace FlowSpeak.Api.Controllers
             var refreshToken = _jwtService.GenerateRefreshToken();
 
             user.RefreshToken          = refreshToken;
-            user.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(7);
+            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
             await _context.SaveChangesAsync();
 
             SetAccessTokenCookie(accessToken);
@@ -116,7 +116,7 @@ namespace FlowSpeak.Api.Controllers
 
             var user = await _context.AppUsers.FirstOrDefaultAsync(u =>
                 u.RefreshToken == refreshToken &&
-                u.RefreshTokenExpiresAt > DateTime.UtcNow &&
+                u.RefreshTokenExpiryTime > DateTime.UtcNow &&
                 u.IsActive && !u.IsDeleted);
 
             if (user == null)
@@ -126,7 +126,7 @@ namespace FlowSpeak.Api.Controllers
             var newRefreshToken = _jwtService.GenerateRefreshToken();
 
             user.RefreshToken          = newRefreshToken;
-            user.RefreshTokenExpiresAt = DateTime.UtcNow.AddDays(7);
+            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
             await _context.SaveChangesAsync();
 
             SetAccessTokenCookie(newAccessToken);
@@ -148,7 +148,7 @@ namespace FlowSpeak.Api.Controllers
                 if (user != null)
                 {
                     user.RefreshToken          = null;
-                    user.RefreshTokenExpiresAt = null;
+                    user.RefreshTokenExpiryTime = null;
                     await _context.SaveChangesAsync();
                 }
             }
@@ -197,11 +197,5 @@ namespace FlowSpeak.Api.Controllers
             }
         }
 
-        private static string ValidateRole(string role) => role switch
-        {
-            "Admin" => "Admin",
-            "Sales" => "Sales",
-            _       => "Viewer"
-        };
     }
 }

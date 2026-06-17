@@ -1,56 +1,89 @@
 import requests
 import uuid
+import time
 
 BASE_URL = "http://localhost:5070"
-TIMEOUT = 30
+REGISTER_ENDPOINT = "/api/auth/register"
+LOGIN_ENDPOINT = "/api/auth/login"
+DELETE_USER_ENDPOINT = "/api/auth/delete"  # Assuming there is a way to delete user for cleanup - not in PRD, so will skip actual delete
 
-def test_post_api_auth_login_should_authenticate_user_and_set_cookies():
-    session = requests.Session()
-    register_url = f"{BASE_URL}/api/auth/register"
-    login_url = f"{BASE_URL}/api/auth/login"
-    test_username = f"testuser_{uuid.uuid4().hex[:8]}"
-    test_password = "TestPassword123!"
-    test_fullname = "Test User"
+timeout = 30
+
+
+def test_postapiauthloginshouldauthenticateuserandsetcookies():
+    username = f"testuser_{uuid.uuid4().hex[:8]}"
+    password = "TestPassword123!"
+    fullName = "Test User"
+
+    # Register user payload
+    register_payload = {
+        "username": username,
+        "password": password,
+        "fullName": fullName,
+        # role omitted to use default Viewer
+    }
+
+    # Register the user first so we can log in
     try:
-        # Register a new user
-        register_payload = {
-            "username": test_username,
-            "password": test_password,
-            "fullName": test_fullname
-        }
-        register_resp = session.post(register_url, json=register_payload, timeout=TIMEOUT)
-        assert register_resp.status_code == 200, f"Registration failed: {register_resp.status_code} {register_resp.text}"
-        reg_json = register_resp.json()
-        assert reg_json.get("success") is True, f"Registration response success false: {reg_json}"
-        # Login with valid credentials
-        login_payload = {
-            "username": test_username,
-            "password": test_password
-        }
-        login_resp = session.post(login_url, json=login_payload, timeout=TIMEOUT)
-        assert login_resp.status_code == 200, f"Login failed: {login_resp.status_code} {login_resp.text}"
-        login_json = login_resp.json()
-        assert login_json.get("success") is True, f"Login response success false: {login_json}"
-        # Validate user profile in response
-        user_profile = login_json.get("user")
-        assert user_profile is not None, "User profile missing in login response"
-        assert "fullName" in user_profile and user_profile["fullName"] == test_fullname, "Full name mismatch in user profile"
-        assert "role" in user_profile and isinstance(user_profile["role"], str), "Role missing or invalid in user profile"
-        # Validate HttpOnly authentication cookies are set
-        cookies = session.cookies
-        # We expect at least access token and refresh token cookies, typically named access_token, refresh_token or similar
-        cookie_names = [c.name for c in cookies]
-        assert cookie_names, "No cookies set in login response"
-        # Check for cookies that have HttpOnly attribute (requests does not expose HttpOnly directly, so we manually check Set-Cookie header)
-        set_cookie_headers = login_resp.headers.getlist('Set-Cookie') if hasattr(login_resp.headers, 'getlist') else []
-        if not set_cookie_headers:
-            # fallback: parse Set-Cookie header manually if present
-            set_cookie_headers = [login_resp.headers.get('Set-Cookie')] if login_resp.headers.get('Set-Cookie') else []
-        assert set_cookie_headers, "No Set-Cookie headers present in login response"
-        http_only_cookies_found = any('httponly' in sc.lower() for sc in set_cookie_headers)
-        assert http_only_cookies_found, "No HttpOnly cookies set in login response"
-    finally:
-        # Cleanup: delete the test user if supported (not specified in PRD), so ignore here
-        pass
+        register_resp = requests.post(
+            BASE_URL + REGISTER_ENDPOINT,
+            json=register_payload,
+            timeout=timeout,
+        )
+        assert register_resp.status_code == 200, f"Register failed: {register_resp.status_code} {register_resp.text}"
+        register_data = register_resp.json()
+        assert register_data.get("success") is True, "Register response success false"
+    except Exception as e:
+        raise AssertionError(f"User registration setup failed: {e}")
 
-test_post_api_auth_login_should_authenticate_user_and_set_cookies()
+    # Attempt login
+    login_payload = {
+        "username": username,
+        "password": password,
+    }
+    try:
+        login_resp = requests.post(
+            BASE_URL + LOGIN_ENDPOINT,
+            json=login_payload,
+            timeout=timeout,
+        )
+    except Exception as e:
+        raise AssertionError(f"Login request failed: {e}")
+
+    # Validate response status code
+    assert login_resp.status_code == 200, f"Login failed with status: {login_resp.status_code}, response: {login_resp.text}"
+
+    # Validate body content
+    try:
+        login_json = login_resp.json()
+    except Exception as e:
+        raise AssertionError(f"Login response JSON decode failed: {e}")
+
+    assert login_json.get("success") is True, "Login response success false"
+    assert "user" in login_json, "Login response missing user profile"
+    user_profile = login_json["user"]
+    assert "fullName" in user_profile, "User profile missing fullName"
+    assert "role" in user_profile, "User profile missing role"
+    assert user_profile["fullName"] == fullName, "User fullName mismatch"
+
+    # Validate HttpOnly cookies for auth
+    cookies = login_resp.cookies
+    # We expect at least two cookies: access token and refresh token, HttpOnly.
+    # Requests cookies do not expose HttpOnly directly, so we check keys presence.
+    cookie_names = [c.name for c in cookies]
+    # Based on typical JWT cookie names used in JWT auth, often 'accessToken' and 'refreshToken'.
+    # But since PRD does not specify cookie names, look for any cookie set.
+    assert len(cookie_names) > 0, "No cookies set in login response"
+
+    # Check each Set-Cookie header individually for HttpOnly attribute
+    set_cookie_headers = login_resp.raw.headers.get_all("Set-Cookie") if hasattr(login_resp.raw.headers, "get_all") else login_resp.headers.get("Set-Cookie")
+    if isinstance(set_cookie_headers, str):
+        set_cookie_headers = [set_cookie_headers]
+    assert set_cookie_headers is not None, "No Set-Cookie header in login response"
+    has_httponly = any("HttpOnly" in header for header in set_cookie_headers)
+    assert has_httponly, "No HttpOnly attribute found in Set-Cookie header"
+
+    print("TC002 Passed: User login authenticated successfully with HttpOnly cookies set.")
+
+# Run the test
+test_postapiauthloginshouldauthenticateuserandsetcookies()

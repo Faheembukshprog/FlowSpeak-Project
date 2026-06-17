@@ -1,61 +1,65 @@
 import requests
-import json
 import uuid
 
 BASE_URL = "http://localhost:5070"
 TIMEOUT = 30
 
-def test_post_api_auth_refresh_should_refresh_access_token():
+def test_postapiauthrefreshshouldrefreshaccesstoken():
+    register_url = f"{BASE_URL}/api/auth/register"
+    login_url = f"{BASE_URL}/api/auth/login"
+    refresh_url = f"{BASE_URL}/api/auth/refresh"
+    logout_url = f"{BASE_URL}/api/auth/logout"
+    username = f"testuser_refresh_{uuid.uuid4().hex[:8]}"
+    password = "TestPass123!"
+    full_name = "Test User Refresh"
+
+    # Prepare registration payload
+    register_payload = {
+        "username": username,
+        "password": password,
+        "fullName": full_name
+    }
+    headers = {
+        "Content-Type": "application/json"
+    }
+
     session = requests.Session()
-    unique_suffix = str(uuid.uuid4())[:8]
+
     try:
-        # Step 1: Register a new user
-        register_payload = {
-            "username": f"testuser_refresh_{unique_suffix}",
-            "password": "TestPassword123!",
-            "fullName": "Test User Refresh"
-        }
-        r_register = session.post(
-            f"{BASE_URL}/api/auth/register",
-            json=register_payload,
-            timeout=TIMEOUT
-        )
-        assert r_register.status_code == 200, f"Register failed: {r_register.text}"
-        reg_resp = r_register.json()
-        assert reg_resp.get("success") is True, "Register success flag is not True"
+        # Register user
+        reg_resp = session.post(register_url, json=register_payload, headers=headers, timeout=TIMEOUT)
+        assert reg_resp.status_code == 200, f"Unexpected register status: {reg_resp.status_code}, body: {reg_resp.text}"
+        reg_body = reg_resp.json()
+        assert reg_body.get("success") is True
 
-        # Step 2: Login to get cookies (access and refresh tokens)
+        # Login user to get cookies
         login_payload = {
-            "username": register_payload["username"],
-            "password": register_payload["password"]
+            "username": username,
+            "password": password
         }
-        r_login = session.post(
-            f"{BASE_URL}/api/auth/login",
-            json=login_payload,
-            timeout=TIMEOUT
-        )
-        assert r_login.status_code == 200, f"Login failed: {r_login.text}"
-        login_resp = r_login.json()
-        assert login_resp.get("success") is True, "Login success flag is not True"
-        assert "user" in login_resp, "Login response missing user profile"
+        login_resp = session.post(login_url, json=login_payload, headers=headers, timeout=TIMEOUT)
+        assert login_resp.status_code == 200, f"Unexpected login status: {login_resp.status_code}, body: {login_resp.text}"
+        login_body = login_resp.json()
+        assert login_body.get("success") is True
+        assert "user" in login_body
+        assert login_body["user"].get("fullName") == full_name
 
-        # Step 3: Call refresh endpoint using the session cookies (includes refresh token cookie automatically)
-        r_refresh = session.post(
-            f"{BASE_URL}/api/auth/refresh",
-            timeout=TIMEOUT
-        )
-        assert r_refresh.status_code == 200, f"Refresh failed: {r_refresh.text}"
-        refresh_resp = r_refresh.json()
-        assert refresh_resp.get("success") is True, "Refresh success flag is not True"
-        assert "Tokens refreshed" in refresh_resp.get("message", ""), "Unexpected refresh message"
+        # Confirm refresh token cookie is set (HttpOnly cookies not accessible via JS, but requests.Session keeps cookies)
+        # Attempt refresh with valid refresh token cookie set in session
+        refresh_resp = session.post(refresh_url, timeout=TIMEOUT)
+        assert refresh_resp.status_code == 200, f"Unexpected refresh status: {refresh_resp.status_code}, body: {refresh_resp.text}"
+        refresh_body = refresh_resp.json()
+        assert refresh_body.get("success") is True
+        assert "Tokens refreshed" in refresh_body.get("message", "")
 
     finally:
+        # Cleanup: Logout user to clear tokens and sessions
         try:
-            session.post(
-                f"{BASE_URL}/api/auth/logout",
-                timeout=TIMEOUT
-            )
+            logout_resp = session.post(logout_url, timeout=TIMEOUT)
+            assert logout_resp.status_code == 200, f"Unexpected logout status: {logout_resp.status_code}, body: {logout_resp.text}"
+            logout_body = logout_resp.json()
+            assert logout_body.get("success") is True
         except Exception:
             pass
 
-test_post_api_auth_refresh_should_refresh_access_token()
+test_postapiauthrefreshshouldrefreshaccesstoken()

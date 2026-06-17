@@ -33,7 +33,13 @@ namespace FlowSpeak.Api.Data
             modelBuilder.Entity<AppUser>().HasIndex(u => u.ExternalId).IsUnique();
             
             modelBuilder.Entity<Product>().HasIndex(p => p.ExternalId).IsUnique();
+            modelBuilder.Entity<Product>().HasIndex(p => p.SKU).IsUnique();
             modelBuilder.Entity<Product>().HasIndex(p => p.Name);
+
+            // Concurrency Token for Inventory
+            modelBuilder.Entity<Product>()
+                .Property<byte[]>("RowVersion")
+                .IsRowVersion();
             
             modelBuilder.Entity<SalesLog>().HasIndex(s => s.ExternalId).IsUnique();
             

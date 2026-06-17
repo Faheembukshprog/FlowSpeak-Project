@@ -32,14 +32,14 @@ namespace FlowSpeak.Api.Models
 
         // ── Dual-Token System (Mistake #1 Avoided) ──
         /// <summary>
-        /// The current refresh token hash. Stored in DB so it can be revoked.
+        /// The current refresh token. Stored in DB so it can be revoked on logout.
         /// </summary>
         public string? RefreshToken { get; set; }
 
         /// <summary>
-        /// When the refresh token expires (7 days from issue).
+        /// When the refresh token expires (7 days from issue). Null when revoked on logout.
         /// </summary>
-        public DateTime? RefreshTokenExpiresAt { get; set; }
+        public DateTime? RefreshTokenExpiryTime { get; set; }
 
         // Navigation
         public virtual ICollection<SalesLog> SalesLogs { get; set; } = new List<SalesLog>();
