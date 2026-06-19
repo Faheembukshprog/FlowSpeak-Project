@@ -76,10 +76,13 @@ appsettings.*.json
 
 # IDEs and Editors
 .idea/
+.agent/
+.cursor/
 *.swp
 *~
 
 # TestSprite
+src/FlowSpeak.Api/testsprite_tests/
 testsprite_tests/tmp/
 
 # OS generated files
