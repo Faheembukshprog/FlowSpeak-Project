@@ -49,6 +49,7 @@ export const LeakFreeTelemetryProvider = ({ children }) => {
 
     const telemetryHistoryRef = useRef([]);
     const dismissedAlertIdsRef = useRef(new Set());
+    const retryTimerRef = useRef(null);
     const MAX_HISTORY = 100;
 
     const dismissLowStockAlert = useCallback((alertId) => {
@@ -108,7 +109,9 @@ export const LeakFreeTelemetryProvider = ({ children }) => {
                 }
             } catch (err) {
                 console.error("Telemetry connection failed, scheduling isolated fallback retry...", err);
-                if (isCurrentMount) setTimeout(startSocketConnection, 5000);
+                if (isCurrentMount) {
+                    retryTimerRef.current = window.setTimeout(startSocketConnection, 5000);
+                }
             }
         };
 
@@ -116,6 +119,10 @@ export const LeakFreeTelemetryProvider = ({ children }) => {
 
         return () => {
             isCurrentMount = false;
+            if (retryTimerRef.current) {
+                clearTimeout(retryTimerRef.current);
+                retryTimerRef.current = null;
+            }
             connection.off("ReceiveTelemetryMetrics", handleIncomingMetrics);
             connection.stop().catch(() => {});
         };

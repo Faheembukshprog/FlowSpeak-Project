@@ -128,7 +128,6 @@ export default function AuditLogPanel() {
   const applyFilters = (e) => {
     e.preventDefault();
     setPage(1);
-    if (!liveStream) fetchLogs();
   };
 
   return (

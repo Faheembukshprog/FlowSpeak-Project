@@ -198,7 +198,7 @@ function Hero({ onLaunch }) {
         </div>
 
         {/* Terminal + stats grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: 1, border: '1px solid #1f1f1f', borderRadius: 10, overflow: 'hidden', background: '#1f1f1f' }}>
+        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-1 border border-slate-900/50 rounded-3xl overflow-hidden bg-slate-950">
           {/* Terminal */}
           <div style={{ background: '#0a0a0a' }}>
             <AnimatedTerminal />
@@ -228,12 +228,6 @@ function Hero({ onLaunch }) {
           </div>
         </div>
 
-        {/* Responsive stack override */}
-        <style>{`
-          @media (max-width: 768px) {
-            .hero-grid { grid-template-columns: 1fr !important; }
-          }
-        `}</style>
       </div>
     </section>
   );

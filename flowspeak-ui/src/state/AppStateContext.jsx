@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
 const API_ENDPOINT = 'http://localhost:5070/api/action/process';
 const AppStateContext = createContext(null);
@@ -20,7 +20,7 @@ export function AppStateProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const submitMessage = async (e) => {
+  const submitMessage = useCallback(async (e) => {
     e && e.preventDefault();
     const text = input.trim();
     if (!text) return;
@@ -107,7 +107,7 @@ export function AppStateProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [input]);
 
   const metrics = useMemo(() => {
     const total = aiLogs.length;

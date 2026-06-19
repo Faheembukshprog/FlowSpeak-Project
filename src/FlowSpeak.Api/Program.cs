@@ -253,7 +253,7 @@ app.UseExceptionHandler(appError =>
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<FlowSpeak.Api.Data.ApplicationDbContext>();
-    await DbInitializer.SeedAsync(db);
+    await DbInitializer.SeedAsync(db, app.Configuration);
 }
 
 // ── OpenAPI (dev only) ────────────────────────────────────────────────────────

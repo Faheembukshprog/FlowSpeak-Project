@@ -10,13 +10,13 @@ namespace FlowSpeak.Api.Data
     /// </summary>
     public static class DbInitializer
     {
-        public static async Task SeedAsync(ApplicationDbContext context)
+        public static async Task SeedAsync(ApplicationDbContext context, IConfiguration configuration)
         {
             // Ensure the database and all pending migrations are applied
             await context.Database.MigrateAsync();
 
             await SeedLookupStatusesAsync(context);
-            await SeedUsersAsync(context);
+            await SeedUsersAsync(context, configuration);
             await SeedProductsAsync(context);
         }
 
@@ -39,13 +39,32 @@ namespace FlowSpeak.Api.Data
         }
 
         // ── Users ─────────────────────────────────────────────────────────────────
-        private static async Task SeedUsersAsync(ApplicationDbContext context)
+        private static async Task SeedUsersAsync(ApplicationDbContext context, IConfiguration configuration)
         {
             if (await context.AppUsers.AnyAsync()) return;
-            
-            // Static demo accounts ('admin' and 'sales') have been removed for security.
-            // In production, provision the initial administrative user via environment variables 
-            // or a secure registration flow.
+
+            var adminUsername = configuration["PROD_ADMIN_USERNAME"];
+            var adminPassword = configuration["PROD_ADMIN_PASSWORD"];
+
+            if (string.IsNullOrWhiteSpace(adminUsername) || string.IsNullOrWhiteSpace(adminPassword))
+            {
+                // Static demo accounts ('admin' and 'sales') have been removed for security.
+                // Configure PROD_ADMIN_USERNAME and PROD_ADMIN_PASSWORD to seed the first admin.
+                return;
+            }
+
+            var adminUser = new AppUser
+            {
+                Username = adminUsername.Trim(),
+                FullName = "Initial Administrator",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword, workFactor: 12),
+                Role = "Admin",
+                PhoneNumber = Guid.NewGuid().ToString(),
+                IsActive = true
+            };
+
+            await context.AppUsers.AddAsync(adminUser);
+            await context.SaveChangesAsync();
         }
 
         // ── Products ──────────────────────────────────────────────────────────────

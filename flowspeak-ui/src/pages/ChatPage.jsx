@@ -48,7 +48,7 @@ export default function ChatPage() {
                       }`}>
                         {message.intent}
                       </span>
-                      <span className="text-2xs text-slate-400">{formatLocal(message.ts)}</span>
+                      <span className="text-[0.625rem] text-slate-400">{formatLocal(message.ts)}</span>
                     </div>
                   )}
                 </div>
