@@ -182,7 +182,7 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    await fetch(`${AUTH_ENDPOINT}/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
+    await fetch(`${AUTH_ENDPOINT}/logout`, { method: 'POST', credentials: 'include' }).catch(() => { });
     setAuthUser(null);
     setActiveView('command');
   };
@@ -277,198 +277,282 @@ export default function App() {
     return (
       <main className="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden">
         <div className="p-4 sm:p-6 lg:p-8 lg:h-full lg:flex lg:flex-col">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 w-full max-w-[1600px] mx-auto lg:flex-1 lg:min-h-0">
-        <aside className="order-2 lg:order-1 flex flex-col min-w-0 border border-slate-800/60 lg:border-r bg-[#0B0F19] lg:min-h-0 lg:h-full">
-          <PanelHeader icon={Activity} title="Live Ledger" badge="[STREAMING]" />
-          <div ref={ledgerScrollRef} className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-3 custom-scrollbar max-h-80 sm:max-h-96 lg:max-h-none">
-            {ledgerItems.length === 0 ? (
-              <p className="text-[11px] text-slate-600 font-mono text-center mt-10 uppercase tracking-wider">No transactions recorded.</p>
-            ) : (
-              ledgerItems.map((txn, index) => {
-                const isLowStock = txnMatchesLowStockAlert(txn, lowStockAlerts);
-                const ledgerKey = getLedgerKeyForTxn(txn);
-                const isPulsing = highlightedLedgerKey && (
-                  highlightedLedgerKey === ledgerKey ||
-                  highlightedLedgerKey === (txn.entity || '').toLowerCase() ||
-                  highlightedLedgerKey === ledgerKey?.toUpperCase()
-                );
-                return (
-                  <div
-                    key={txn.id || index}
-                    ref={(el) => { if (el) ledgerRowRefs.current[ledgerKey] = el; }}
-                    className={`border border-slate-800/60 p-3 text-[11px] font-mono transition-all duration-150 ease-in-out ${
-                      isPulsing
-                        ? 'border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.05)]'
-                        : isLowStock
-                          ? 'border-amber-500/40 bg-amber-500/5'
-                          : 'bg-[#0E1422]/50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="text-slate-500 tabular-nums">{formatLocal(txn.timestamp)}</span>
-                      <div className="flex items-center gap-1.5">
-                        {isLowStock && (
-                          <span className="text-[9px] uppercase tracking-wider text-amber-400">LOW STOCK</span>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 w-full max-w-400 mx-auto lg:flex-1 lg:min-h-0">
+            <aside className="order-2 lg:order-1 flex flex-col min-w-0 border border-slate-800/60 lg:border-r bg-[#0B0F19] lg:min-h-0 lg:h-full">
+              <PanelHeader icon={Activity} title="Live Ledger" badge="[STREAMING]" />
+              <div ref={ledgerScrollRef} className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-3 custom-scrollbar max-h-80 sm:max-h-96 lg:max-h-none">
+                {ledgerItems.length === 0 ? (
+                  <p className="text-[11px] text-slate-600 font-mono text-center mt-10 uppercase tracking-wider">No transactions recorded.</p>
+                ) : (
+                  ledgerItems.map((txn, index) => {
+                    const isLowStock = txnMatchesLowStockAlert(txn, lowStockAlerts);
+                    const ledgerKey = getLedgerKeyForTxn(txn);
+                    const isPulsing = highlightedLedgerKey && (
+                      highlightedLedgerKey === ledgerKey ||
+                      highlightedLedgerKey === (txn.entity || '').toLowerCase() ||
+                      highlightedLedgerKey === ledgerKey?.toUpperCase()
+                    );
+                    return (
+                      <div
+                        key={txn.id || index}
+                        ref={(el) => { if (el) ledgerRowRefs.current[ledgerKey] = el; }}
+                        className={`border border-slate-800/60 p-3 text-[11px] font-mono transition-all duration-150 ease-in-out ${isPulsing
+                          ? 'border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.05)]'
+                          : isLowStock
+                            ? 'border-amber-500/40 bg-amber-500/5'
+                            : 'bg-[#0E1422]/50'
+                          }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="text-slate-500 tabular-nums">{formatLocal(txn.timestamp)}</span>
+                          <div className="flex items-center gap-1.5">
+                            {isLowStock && (
+                              <span className="text-[9px] uppercase tracking-wider text-amber-400">LOW STOCK</span>
+                            )}
+                            {txn.status === 'SUCCESS' ? (
+                              <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                            ) : (
+                              <AlertCircle className="h-3 w-3 text-rose-500" />
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-slate-100 min-w-0">
+                          <span className="text-slate-500">INTENT: </span>
+                          <span className={`break-all ${txn.status === 'SUCCESS' ? 'text-emerald-400' : txn.eventType === 'LOW_STOCK_ALERT' ? 'text-amber-400' : 'text-rose-500'}`}>
+                            {txn.intent || txn.eventType}
+                          </span>
+                        </div>
+                        <div className="text-slate-400 mt-1 min-w-0">
+                          <span className="text-slate-500">ENTITY: </span>
+                          <span className="break-all">{txn.entity}</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </aside>
+
+            <section className="order-1 lg:order-2 flex flex-col min-h-[min(56vh,520px)] lg:min-h-0 lg:h-full bg-[#0B0F19] border border-slate-800/60 overflow-hidden">
+              <PanelHeader icon={Cpu} title="Execution Engine" badge="[SYSTEM_READY]" />
+              <div ref={chatScrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 sm:p-5 space-y-3 sm:space-y-4 custom-scrollbar">
+                {chat.map((msg) => (
+                  <div key={msg.id} className={`flex w-full min-w-0 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    {msg.role === 'user' ? (
+                      <div className="max-w-full sm:max-w-[85%] lg:max-w-[80%] min-w-0 border border-emerald-500/30 bg-[#0E1422]/50 px-3 sm:px-4 py-3 text-slate-100 transition-all duration-150 ease-in-out">
+                        <p className="font-mono text-xs sm:text-sm leading-relaxed wrap-break-word">{msg.text}</p>
+                      </div>
+                    ) : (
+                      <div className="max-w-full sm:max-w-[90%] lg:max-w-[85%] min-w-0 border border-slate-800/60 bg-[#0E1422]/50 px-3 sm:px-4 py-3 transition-all duration-150 ease-in-out">
+                        <div className="flex items-center gap-2 mb-2 font-mono text-[10px] uppercase tracking-widest min-w-0 overflow-x-auto">
+                          <Cpu className="h-3 w-3 text-slate-500 shrink-0" />
+                          <span className="text-slate-400 shrink-0 leading-none">Execution Engine</span>
+                          <span className="text-slate-700 shrink-0 leading-none">·</span>
+                          <span className={`shrink-0 leading-none whitespace-nowrap ${intentStatusClass(msg.status)}`}>
+                            [{msg.intent}]
+                          </span>
+                          {msg.status === 'FORBIDDEN' && <ShieldAlert className="h-3 w-3 text-amber-400 shrink-0" />}
+                        </div>
+                        <p className="font-mono text-xs sm:text-sm leading-relaxed text-slate-100 whitespace-pre-wrap wrap-break-word">{msg.text}</p>
+                        {msg.data && msg.intent === 'SEARCH_PRODUCTS' && msg.data.products && (
+                          <div className="mt-3 space-y-2 border-t border-slate-700/40 pt-3">
+                            {msg.data.products.length === 0 ? (
+                              <p className="text-[10px] text-slate-500">No products found</p>
+                            ) : (
+                              msg.data.products.map((prod, idx) => (
+                                <div key={idx} className="border border-slate-700/40 rounded p-2 bg-slate-900/20">
+                                  <div className="flex justify-between items-start gap-2">
+                                    <div>
+                                      <p className="font-semibold text-[11px] text-slate-100">{prod.name}</p>
+                                      <p className="text-[9px] text-slate-500">SKU: {prod.sku}</p>
+                                    </div>
+                                    <span className="text-[11px] font-semibold text-slate-300">${prod.price.toFixed(2)}</span>
+                                  </div>
+                                  <div className="mt-1">
+                                    <span className={`inline-block px-2 py-0.5 text-[9px] font-semibold rounded ${prod.available ? 'bg-emerald-900/30 text-emerald-300' : 'bg-red-900/30 text-red-300'
+                                      }`}>
+                                      {prod.stockQuantity} in stock
+                                    </span>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
                         )}
-                        {txn.status === 'SUCCESS' ? (
-                          <CheckCircle2 className="h-3 w-3 text-emerald-400" />
-                        ) : (
-                          <AlertCircle className="h-3 w-3 text-rose-500" />
+                        {msg.data && msg.intent === 'LIST_MY_ORDERS' && msg.data.orders && (
+                          <div className="mt-3 space-y-2 border-t border-slate-700/40 pt-3">
+                            {msg.data.orders.length === 0 ? (
+                              <p className="text-[10px] text-slate-500">No orders found</p>
+                            ) : (
+                              msg.data.orders.map((order, idx) => (
+                                <div key={idx} className="border border-slate-700/40 rounded p-2 bg-slate-900/20">
+                                  <div className="flex justify-between items-start gap-2">
+                                    <div>
+                                      <p className="font-semibold text-[11px] text-slate-100">{order.orderNumber}</p>
+                                      <p className="text-[9px] text-slate-500">{new Date(order.createdAt).toLocaleString()}</p>
+                                    </div>
+                                    <span className={`inline-block px-2 py-0.5 text-[9px] font-semibold rounded ${order.status === 'CONFIRMED' ? 'bg-emerald-900/30 text-emerald-300' :
+                                      order.status === 'CANCELLED' ? 'bg-red-900/30 text-red-300' :
+                                        'bg-amber-900/30 text-amber-300'
+                                      }`}>{order.status}</span>
+                                  </div>
+                                  <div className="mt-1 text-[9px]">
+                                    {order.items.map((item, i) => (
+                                      <p key={i} className="text-slate-300">{item.quantity}x {item.productName}</p>
+                                    ))}
+                                  </div>
+                                  <p className="text-[10px] font-semibold text-slate-200 mt-1">Total: ${order.totalAmount.toFixed(2)}</p>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+                        {msg.data && msg.intent === 'REQUEST_QUOTE' && msg.data.productName && (
+                          <div className="mt-3 border border-blue-700/30 rounded p-2 bg-blue-900/20">
+                            <div className="text-[9px] space-y-0.5 text-slate-100">
+                              <p><span className="text-slate-400">Product:</span> {msg.data.productName}</p>
+                              <p><span className="text-slate-400">Quantity:</span> {msg.data.quantity}</p>
+                              <p><span className="text-slate-400">Unit Price:</span> ${msg.data.regularUnitPrice.toFixed(2)}</p>
+                              <p><span className="text-slate-400">Bulk Price:</span> ${msg.data.bulkUnitPrice.toFixed(2)} ({msg.data.discountPercentage}% off)</p>
+                              <p className="text-[11px] font-bold text-blue-300 mt-1">Total: ${msg.data.totalPrice.toFixed(2)}</p>
+                              {msg.data.totalSavings > 0 && (
+                                <p className="text-[9px] text-emerald-300">Save ${msg.data.totalSavings.toFixed(2)}</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {msg.data && (msg.intent === 'CREATE_ORDER' || msg.intent === 'RESERVE_STOCK') && msg.data.orderNumber && (
+                          <div className="mt-3 border border-emerald-700/30 rounded p-2 bg-emerald-900/20">
+                            <div className="text-[9px] space-y-0.5 text-slate-100">
+                              <p><span className="text-slate-400">Order:</span> {msg.data.orderNumber}</p>
+                              <p><span className="text-slate-400">Product:</span> {msg.data.productName}</p>
+                              <p><span className="text-slate-400">Qty:</span> {msg.data.quantity}</p>
+                              <p><span className="text-slate-400">Total:</span> ${msg.data.totalAmount.toFixed(2)}</p>
+                              <p><span className="text-slate-400">Status:</span> {msg.data.status}</p>
+                            </div>
+                          </div>
                         )}
                       </div>
-                    </div>
-                    <div className="text-slate-100 min-w-0">
-                      <span className="text-slate-500">INTENT: </span>
-                      <span className={`break-all ${txn.status === 'SUCCESS' ? 'text-emerald-400' : txn.eventType === 'LOW_STOCK_ALERT' ? 'text-amber-400' : 'text-rose-500'}`}>
-                        {txn.intent || txn.eventType}
-                      </span>
-                    </div>
-                    <div className="text-slate-400 mt-1 min-w-0">
-                      <span className="text-slate-500">ENTITY: </span>
-                      <span className="break-all">{txn.entity}</span>
-                    </div>
+                    )}
                   </div>
-                );
-              })
-            )}
-          </div>
-        </aside>
+                ))}
+              </div>
 
-        <section className="order-1 lg:order-2 flex flex-col min-h-[min(56vh,520px)] lg:min-h-0 lg:h-full bg-[#0B0F19] border border-slate-800/60 overflow-hidden">
-          <PanelHeader icon={Cpu} title="Execution Engine" badge="[SYSTEM_READY]" />
-          <div ref={chatScrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 sm:p-5 space-y-3 sm:space-y-4 custom-scrollbar">
-            {chat.map((msg) => (
-              <div key={msg.id} className={`flex w-full min-w-0 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                {msg.role === 'user' ? (
-                  <div className="max-w-full sm:max-w-[85%] lg:max-w-[80%] min-w-0 border border-emerald-500/30 bg-[#0E1422]/50 px-3 sm:px-4 py-3 text-slate-100 transition-all duration-150 ease-in-out">
-                    <p className="font-mono text-xs sm:text-sm leading-relaxed break-words">{msg.text}</p>
+              <div className="shrink-0 p-4 sm:p-5 border-t border-slate-800/60 bg-[#0B0F19]">
+                <form onSubmit={submitMessage} className="flex flex-col gap-2 sm:block sm:relative">
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Execute a command..."
+                    autoFocus
+                    className="w-full bg-slate-950/40 border border-slate-800/60 py-3 pl-3 sm:pl-4 pr-3 sm:pr-14 font-mono text-xs sm:text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500/50 focus:outline-none focus:shadow-[0_0_15px_rgba(16,185,129,0.05)] transition-all duration-150 ease-in-out"
+                  />
+                  <button
+                    type="submit"
+                    disabled={loading || !input.trim()}
+                    className="
+    w-full flex h-10 items-center justify-center gap-2 border border-emerald-500/40 bg-[#0E1422]/80 text-emerald-400 font-mono text-[10px] uppercase tracking-widest transition-all duration-150 ease-in-out
+    hover:border-emerald-500/60 hover:bg-emerald-500/10 hover:shadow-[0_0_15px_rgba(16,185,129,0.05)] 
+    disabled:opacity-40 disabled:hover:shadow-none disabled:hover:bg-[#0E1422]/80
+    sm:absolute sm:right-1.5 sm:top-1/2 sm:-translate-y-1/2 sm:w-9 sm:h-9 sm:text-inherit sm:normal-case sm:tracking-normal
+  "
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                    <span className="sm:hidden">
+                      {loading ? 'Processing...' : 'Execute'}
+                    </span>
+                  </button>
+                </form>
+              </div>
+            </section>
+
+            <aside className="order-3 flex flex-col min-w-0 border border-slate-800/60 lg:border-l bg-[#0B0F19] lg:min-h-0 lg:h-full">
+              <PanelHeader
+                icon={Database}
+                title="Live Context"
+                badge={activeContext ? '[BOUND]' : '[IDLE]'}
+                badgeClassName={activeContext ? 'text-emerald-400' : 'text-slate-500'}
+              />
+              <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-4 custom-scrollbar">
+                {!activeContext ? (
+                  <div className="h-full flex flex-col items-center justify-center gap-4 text-slate-600">
+                    <Package className="h-10 w-10 text-slate-700" />
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-center text-slate-500 leading-relaxed">
+                      No active record in context.<br />Query a product to load.
+                    </p>
+                  </div>
+                ) : activeContext.type === 'order' ? (
+                  <div className="border border-slate-800/60 bg-[#0E1422]/50 overflow-hidden">
+                    <div className="p-4 border-b border-slate-800/60 bg-slate-950/40">
+                      <p className="font-mono text-[10px] uppercase tracking-widest text-emerald-400/80">Order Receipt</p>
+                      <h3 className="font-mono text-base sm:text-lg text-slate-100 mt-1 break-all">{activeContext.orderNumber}</h3>
+                    </div>
+                    <div className="p-4 space-y-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500">Status</p>
+                        <span className="font-mono text-[10px] uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2.5 py-1">{activeContext.status}</span>
+                      </div>
+                      <div>
+                        <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500 mb-1">Product</p>
+                        <p className="font-mono text-sm text-slate-100 wrap-break-word">{activeContext.productName}</p>
+                        <p className="font-mono text-[11px] text-slate-400 mt-0.5 break-all">{activeContext.productSKU}</p>
+                      </div>
+                      <div className="flex items-center justify-between gap-4 pt-1">
+                        <div>
+                          <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500 mb-1">Qty Reserved</p>
+                          <p className="font-mono text-xl text-slate-100 tabular-nums">{activeContext.quantity}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500 mb-1">Total</p>
+                          <p className="font-mono text-xl text-emerald-400 tabular-nums">${activeContext.totalAmount?.toFixed(2)}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-3 border-t border-slate-800/60 bg-slate-950/40 text-center">
+                      <p className="font-mono text-[9px] uppercase tracking-widest text-slate-500">Order Logged to Database</p>
+                    </div>
                   </div>
                 ) : (
-                  <div className="max-w-full sm:max-w-[90%] lg:max-w-[85%] min-w-0 border border-slate-800/60 bg-[#0E1422]/50 px-3 sm:px-4 py-3 transition-all duration-150 ease-in-out">
-                    <div className="flex items-center gap-2 mb-2 font-mono text-[10px] uppercase tracking-widest min-w-0 overflow-x-auto">
-                      <Cpu className="h-3 w-3 text-slate-500 shrink-0" />
-                      <span className="text-slate-400 shrink-0 leading-none">Execution Engine</span>
-                      <span className="text-slate-700 shrink-0 leading-none">·</span>
-                      <span className={`shrink-0 leading-none whitespace-nowrap ${intentStatusClass(msg.status)}`}>
-                        [{msg.intent}]
-                      </span>
-                      {msg.status === 'FORBIDDEN' && <ShieldAlert className="h-3 w-3 text-amber-400 shrink-0" />}
+                  <div className="border border-slate-800/60 bg-[#0E1422]/50 overflow-hidden">
+                    <div className="p-4 border-b border-slate-800/60 bg-slate-950/40">
+                      <h3 className="font-mono text-sm sm:text-base text-slate-100 leading-snug wrap-break-word">{activeContext.name}</h3>
+                      <div className="mt-2 flex items-center gap-2 min-w-0">
+                        <Tag className="h-3 w-3 text-slate-500 shrink-0" />
+                        <span className="font-mono text-[10px] text-slate-400 uppercase tracking-widest break-all">{activeContext.sku}</span>
+                      </div>
                     </div>
-                    <p className="font-mono text-xs sm:text-sm leading-relaxed text-slate-100 whitespace-pre-wrap break-words">{msg.text}</p>
+                    <div className="p-4 space-y-4">
+                      <div>
+                        <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500 mb-1">Pricing</p>
+                        <p className="font-mono text-2xl text-slate-100 tabular-nums">${activeContext.price?.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500 mb-2">Inventory Status</p>
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-2">
+                            <div className={`h-2 w-2 rounded-full ${activeContext.stockQuantity > 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                            <span className="font-mono text-[11px] text-slate-400 uppercase tracking-wider">
+                              {activeContext.stockQuantity > 0 ? 'In Stock' : 'Out of Stock'}
+                            </span>
+                          </div>
+                          <span className="font-mono text-lg text-slate-100 tabular-nums">{activeContext.stockQuantity}</span>
+                        </div>
+                        <div className="mt-3 h-1 w-full bg-slate-800/80 overflow-hidden">
+                          <div
+                            className={`h-full transition-all duration-150 ease-in-out ${activeContext.stockQuantity > 20 ? 'bg-emerald-500' : activeContext.stockQuantity > 0 ? 'bg-amber-400' : 'bg-rose-500'}`}
+                            style={{ width: `${Math.min((activeContext.stockQuantity / 100) * 100, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-3 border-t border-slate-800/60 bg-slate-950/40 text-center">
+                      <p className="font-mono text-[9px] uppercase tracking-widest text-slate-500">Live Database Binding Active</p>
+                    </div>
                   </div>
                 )}
               </div>
-            ))}
-          </div>
-
-          <div className="shrink-0 p-4 sm:p-5 border-t border-slate-800/60 bg-[#0B0F19]">
-            <form onSubmit={submitMessage} className="flex flex-col gap-2 sm:block sm:relative">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Execute a command..."
-                autoFocus
-                className="w-full bg-slate-950/40 border border-slate-800/60 py-3 pl-3 sm:pl-4 pr-3 sm:pr-14 font-mono text-xs sm:text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500/50 focus:outline-none focus:shadow-[0_0_15px_rgba(16,185,129,0.05)] transition-all duration-150 ease-in-out"
-              />
-              <button
-                type="submit"
-                disabled={loading || !input.trim()}
-                className="w-full sm:w-auto sm:absolute sm:right-1.5 sm:top-1/2 sm:-translate-y-1/2 flex h-10 sm:h-9 sm:w-9 items-center justify-center gap-2 border border-emerald-500/40 bg-[#0E1422]/80 text-emerald-400 font-mono text-[10px] sm:text-inherit uppercase sm:normal-case tracking-widest sm:tracking-normal transition-all duration-150 ease-in-out hover:border-emerald-500/60 hover:bg-emerald-500/10 hover:shadow-[0_0_15px_rgba(16,185,129,0.05)] disabled:opacity-40 disabled:hover:shadow-none disabled:hover:bg-[#0E1422]/80"
-              >
-                <Send className="h-3.5 w-3.5" />
-                <span className="sm:hidden">{loading ? 'Processing...' : 'Execute'}</span>
-              </button>
-            </form>
-          </div>
-        </section>
-
-        <aside className="order-3 flex flex-col min-w-0 border border-slate-800/60 lg:border-l bg-[#0B0F19] lg:min-h-0 lg:h-full">
-          <PanelHeader
-            icon={Database}
-            title="Live Context"
-            badge={activeContext ? '[BOUND]' : '[IDLE]'}
-            badgeClassName={activeContext ? 'text-emerald-400' : 'text-slate-500'}
-          />
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-4 custom-scrollbar">
-            {!activeContext ? (
-              <div className="h-full flex flex-col items-center justify-center gap-4 text-slate-600">
-                <Package className="h-10 w-10 text-slate-700" />
-                <p className="text-[10px] font-mono uppercase tracking-widest text-center text-slate-500 leading-relaxed">
-                  No active record in context.<br />Query a product to load.
-                </p>
-              </div>
-            ) : activeContext.type === 'order' ? (
-              <div className="border border-slate-800/60 bg-[#0E1422]/50 overflow-hidden">
-                <div className="p-4 border-b border-slate-800/60 bg-slate-950/40">
-                  <p className="font-mono text-[10px] uppercase tracking-widest text-emerald-400/80">Order Receipt</p>
-                  <h3 className="font-mono text-base sm:text-lg text-slate-100 mt-1 break-all">{activeContext.orderNumber}</h3>
-                </div>
-                <div className="p-4 space-y-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500">Status</p>
-                    <span className="font-mono text-[10px] uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2.5 py-1">{activeContext.status}</span>
-                  </div>
-                  <div>
-                    <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500 mb-1">Product</p>
-                    <p className="font-mono text-sm text-slate-100 break-words">{activeContext.productName}</p>
-                    <p className="font-mono text-[11px] text-slate-400 mt-0.5 break-all">{activeContext.productSKU}</p>
-                  </div>
-                  <div className="flex items-center justify-between gap-4 pt-1">
-                    <div>
-                      <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500 mb-1">Qty Reserved</p>
-                      <p className="font-mono text-xl text-slate-100 tabular-nums">{activeContext.quantity}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500 mb-1">Total</p>
-                      <p className="font-mono text-xl text-emerald-400 tabular-nums">${activeContext.totalAmount?.toFixed(2)}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="p-3 border-t border-slate-800/60 bg-slate-950/40 text-center">
-                  <p className="font-mono text-[9px] uppercase tracking-widest text-slate-500">Order Logged to Database</p>
-                </div>
-              </div>
-            ) : (
-              <div className="border border-slate-800/60 bg-[#0E1422]/50 overflow-hidden">
-                <div className="p-4 border-b border-slate-800/60 bg-slate-950/40">
-                  <h3 className="font-mono text-sm sm:text-base text-slate-100 leading-snug break-words">{activeContext.name}</h3>
-                  <div className="mt-2 flex items-center gap-2 min-w-0">
-                    <Tag className="h-3 w-3 text-slate-500 shrink-0" />
-                    <span className="font-mono text-[10px] text-slate-400 uppercase tracking-widest break-all">{activeContext.sku}</span>
-                  </div>
-                </div>
-                <div className="p-4 space-y-4">
-                  <div>
-                    <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500 mb-1">Pricing</p>
-                    <p className="font-mono text-2xl text-slate-100 tabular-nums">${activeContext.price?.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500 mb-2">Inventory Status</p>
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2">
-                        <div className={`h-2 w-2 rounded-full ${activeContext.stockQuantity > 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                        <span className="font-mono text-[11px] text-slate-400 uppercase tracking-wider">
-                          {activeContext.stockQuantity > 0 ? 'In Stock' : 'Out of Stock'}
-                        </span>
-                      </div>
-                      <span className="font-mono text-lg text-slate-100 tabular-nums">{activeContext.stockQuantity}</span>
-                    </div>
-                    <div className="mt-3 h-1 w-full bg-slate-800/80 overflow-hidden">
-                      <div
-                        className={`h-full transition-all duration-150 ease-in-out ${activeContext.stockQuantity > 20 ? 'bg-emerald-500' : activeContext.stockQuantity > 0 ? 'bg-amber-400' : 'bg-rose-500'}`}
-                        style={{ width: `${Math.min((activeContext.stockQuantity / 100) * 100, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-                <div className="p-3 border-t border-slate-800/60 bg-slate-950/40 text-center">
-                  <p className="font-mono text-[9px] uppercase tracking-widest text-slate-500">Live Database Binding Active</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </aside>
+            </aside>
           </div>
         </div>
       </main>
@@ -495,11 +579,10 @@ export default function App() {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveView(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest transition-all duration-150 ease-in-out border ${
-                    isActive
-                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.05)]'
-                      : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-800/60 hover:bg-[#0E1422]/50'
-                  }`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-widest transition-all duration-150 ease-in-out border ${isActive
+                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.05)]'
+                    : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-800/60 hover:bg-[#0E1422]/50'
+                    }`}
                 >
                   <Icon className="h-3 w-3" />
                   <span className="hidden md:inline">{tab.label}</span>
@@ -526,7 +609,7 @@ export default function App() {
             </span>
           </div>
           <div className="h-3.5 w-px bg-slate-800/60" />
-          <span className="text-slate-400 normal-case tracking-normal truncate max-w-[140px] sm:max-w-none">ID: {authUser.fullName} ({authUser.role})</span>
+          <span className="inline-block text-slate-400 normal-case tracking-normal truncate max-w-35 sm:max-w-none">ID: {authUser.fullName} ({authUser.role})</span>
           <button
             onClick={handleLogout}
             className="ml-1 flex items-center gap-1 text-slate-500 hover:text-slate-100 transition-all duration-150 ease-in-out"
@@ -538,11 +621,10 @@ export default function App() {
       </header>
 
       <div
-        className={`shrink-0 overflow-hidden transition-all duration-150 ease-in-out border-b border-amber-500/30 bg-amber-500/5 ${
-          bannerVisible && lowStockAlerts.length > 0
-            ? 'max-h-48 opacity-100 translate-y-0'
-            : 'max-h-0 opacity-0 -translate-y-1 border-b-0'
-        }`}
+        className={`shrink-0 overflow-hidden transition-all duration-150 ease-in-out border-b border-amber-500/30 bg-amber-500/5 ${bannerVisible && lowStockAlerts.length > 0
+          ? 'max-h-48 opacity-100 translate-y-0'
+          : 'max-h-0 opacity-0 -translate-y-1 border-b-0'
+          }`}
       >
         {lowStockAlerts.map((alert) => (
           <div
@@ -589,7 +671,8 @@ export default function App() {
         {renderMainContent()}
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 4px; }

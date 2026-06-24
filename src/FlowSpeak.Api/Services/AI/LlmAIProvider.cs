@@ -20,13 +20,14 @@ namespace FlowSpeak.Api.Services.AI
 You are the NLP engine for an Enterprise Command Center.
 Your ONLY job is to parse the user's natural language into a strict JSON object with EXACTLY this schema:
 {
-  ""intent"": ""string (CHECK_STOCK, RESERVE_STOCK, GET_ORDER_STATUS, CANCEL_ORDER, UPDATE_STOCK, ADD_PRODUCT, or UNKNOWN_INTENT)"",
-  ""entity"": ""string (The product name or order number being requested)"",
+  ""intent"": ""string (CHECK_STOCK, RESERVE_STOCK, CREATE_ORDER, GET_ORDER_STATUS, CANCEL_ORDER, UPDATE_STOCK, ADD_PRODUCT, LIST_MY_ORDERS, LIST_ALL_ORDERS, SEARCH_PRODUCTS, REQUEST_QUOTE, or UNKNOWN_INTENT)"",
+  ""entity"": ""string (The product name, order number, or search term being requested)"",
   ""parameters"": {
-    ""quantity"": ""string (For RESERVE_STOCK, UPDATE_STOCK, ADD_PRODUCT - default to '1' if not specified. MUST be a string)"",
+    ""quantity"": ""string (For RESERVE_STOCK, CREATE_ORDER, UPDATE_STOCK, ADD_PRODUCT, REQUEST_QUOTE - default to '1' if not specified. MUST be a string)"",
     ""orderNumber"": ""string (For GET_ORDER_STATUS, CANCEL_ORDER)"",
     ""sku"": ""string (For ADD_PRODUCT - optional SKU)"",
-    ""price"": ""string (For ADD_PRODUCT - unit price)""
+    ""price"": ""string (For ADD_PRODUCT - unit price)"",
+    ""searchTerm"": ""string (For SEARCH_PRODUCTS - optional, if not provided list all)""
   }
 }
 Do NOT wrap the JSON in markdown code blocks like ```json. Output RAW JSON ONLY. Be extremely concise.";
@@ -45,7 +46,22 @@ Do NOT wrap the JSON in markdown code blocks like ```json. Output RAW JSON ONLY.
                 return new IntentRequest { Intent = "UNKNOWN_INTENT", Entity = string.Empty };
             }
 
-            // 1. Try Groq (Primary)
+            // 1. Try Gemini (Primary if configured)
+            try
+            {
+                var geminiApiKey = _configuration["GEMINI_API_KEY"];
+                if (!string.IsNullOrEmpty(geminiApiKey))
+                {
+                    var result = await CallGeminiAsync(text, geminiApiKey);
+                    if (result != null) return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Gemini API failed. Falling back to Groq.");
+            }
+
+            // 2. Try Groq
             try
             {
                 var groqApiKey = _configuration["GROQ_API_KEY"];
@@ -64,7 +80,7 @@ Do NOT wrap the JSON in markdown code blocks like ```json. Output RAW JSON ONLY.
                 _logger.LogWarning(ex, "Groq API failed. Falling back to Ollama.");
             }
 
-            // 2. Try Ollama (Fallback)
+            // 3. Try Ollama (Fallback)
             try
             {
                 var ollamaUrl = _configuration["OLLAMA_ENDPOINT"] ?? "http://localhost:11434";
@@ -231,12 +247,136 @@ Do NOT wrap the JSON in markdown code blocks like ```json. Output RAW JSON ONLY.
                 }
             }
 
+            // 7. CREATE_ORDER
+            if (lower.Contains("create order") || lower.Contains("place order") || (lower.Contains("order") && (lower.Contains("want") || lower.Contains("like") || lower.Contains("need"))))
+            {
+                int quantity = 1;
+                var qtyMatch = System.Text.RegularExpressions.Regex.Match(lower, @"\b(\d+)\b");
+                if (qtyMatch.Success)
+                {
+                    int.TryParse(qtyMatch.Groups[1].Value, out quantity);
+                }
+
+                string productName = "";
+                var prodMatch = System.Text.RegularExpressions.Regex.Match(lower, @"(?:order|create order|place order)\s+(?:\d+\s+)?(?:units of|unit of|units|unit)?\s*(.+?)(?:\s+for\s+|\s*$)");
+                if (prodMatch.Success)
+                {
+                    productName = prodMatch.Groups[1].Value.Trim();
+                }
+
+                if (!string.IsNullOrEmpty(productName))
+                {
+                    var req = new IntentRequest { Intent = "CREATE_ORDER", Entity = productName };
+                    req.Parameters["quantity"] = quantity.ToString();
+                    return req;
+                }
+            }
+
+            // 8a. LIST_ALL_ORDERS — Admin-only global ledger (check BEFORE LIST_MY_ORDERS)
+            if (lower.Contains("show all orders") || lower.Contains("list all orders") || lower.Contains("all orders") || lower.Contains("every order") || lower.Contains("global orders"))
+            {
+                return new IntentRequest { Intent = "LIST_ALL_ORDERS", Entity = "" };
+            }
+
+            // 8b. LIST_MY_ORDERS — caller's own orders (all roles)
+            if (lower.Contains("show my orders") || lower.Contains("list orders") || lower.Contains("my orders") || lower.Contains("order history") || lower.Contains("all my orders"))
+            {
+                return new IntentRequest { Intent = "LIST_MY_ORDERS", Entity = "" };
+            }
+
+            // 9. SEARCH_PRODUCTS
+            if (lower.Contains("search") || lower.Contains("find products") || lower.Contains("browse") || lower.Contains("list products"))
+            {
+                string searchTerm = "";
+                var searchMatch = System.Text.RegularExpressions.Regex.Match(lower, @"(?:search|find|browse)\s+(?:for\s+)?(?:products?\s+)?(.+?)(?:\s*$)");
+                if (searchMatch.Success)
+                {
+                    searchTerm = searchMatch.Groups[1].Value.Trim();
+                }
+
+                var req = new IntentRequest { Intent = "SEARCH_PRODUCTS", Entity = searchTerm };
+                return req;
+            }
+
+            // 10. REQUEST_QUOTE
+            if (lower.Contains("quote") || lower.Contains("pricing") || (lower.Contains("bulk") && (lower.Contains("order") || lower.Contains("price"))))
+            {
+                int quantity = 100; // Default bulk quantity
+                var qtyMatch = System.Text.RegularExpressions.Regex.Match(lower, @"\b(\d+)\b");
+                if (qtyMatch.Success)
+                {
+                    int.TryParse(qtyMatch.Groups[1].Value, out quantity);
+                }
+
+                string productName = "";
+                var prodMatch = System.Text.RegularExpressions.Regex.Match(lower, @"(?:quote|pricing|bulk order)\s+(?:for|on)?\s+(.+?)(?:\s*$)");
+                if (prodMatch.Success)
+                {
+                    productName = prodMatch.Groups[1].Value.Trim();
+                }
+
+                if (!string.IsNullOrEmpty(productName))
+                {
+                    var req = new IntentRequest { Intent = "REQUEST_QUOTE", Entity = productName };
+                    req.Parameters["quantity"] = quantity.ToString();
+                    return req;
+                }
+            }
+
             return null;
         }
 
         public Task<IntentRequest> ExtractIntentFromAudioAsync(byte[] audio, string contentType)
         {
             throw new NotImplementedException("Audio intent extraction not yet supported via LLM.");
+        }
+
+        private async Task<IntentRequest?> CallGeminiAsync(string text, string apiKey)
+        {
+            var endpoint = _configuration["GEMINI_ENDPOINT"] ?? "https://api.gemini.com/v1/chat/completions";
+            var model = _configuration["GEMINI_MODEL"] ?? "gemini-prodigy";
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+            var payload = new
+            {
+                model = model,
+                messages = new[]
+                {
+                    new { role = "system", content = SYSTEM_PROMPT },
+                    new { role = "user", content = text }
+                },
+                temperature = 0.0
+            };
+
+            request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+
+            var responseJson = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(responseJson);
+            string? content = null;
+
+            if (doc.RootElement.TryGetProperty("choices", out var choices) && choices.ValueKind == JsonValueKind.Array && choices.GetArrayLength() > 0)
+            {
+                var message = choices[0].GetProperty("message");
+                if (message.TryGetProperty("content", out var contentElement))
+                    content = contentElement.GetString();
+            }
+            else if (doc.RootElement.TryGetProperty("candidates", out var candidates) && candidates.ValueKind == JsonValueKind.Array && candidates.GetArrayLength() > 0)
+            {
+                var firstCandidate = candidates[0];
+                if (firstCandidate.TryGetProperty("content", out var contentArray) && contentArray.ValueKind == JsonValueKind.Array && contentArray.GetArrayLength() > 0)
+                {
+                    var item = contentArray[0];
+                    if (item.TryGetProperty("text", out var textElement))
+                        content = textElement.GetString();
+                }
+            }
+
+            return ParseRawJsonToIntent(content);
         }
 
         private async Task<IntentRequest?> CallGroqAsync(string text, string apiKey)

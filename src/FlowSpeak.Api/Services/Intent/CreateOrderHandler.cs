@@ -6,16 +6,16 @@ using System.Threading.Channels;
 
 namespace FlowSpeak.Api.Services.Intent
 {
-    public class ReserveStockHandler : IIntentHandler
+    public class CreateOrderHandler : IIntentHandler
     {
         private readonly IOrderService _orderService;
         private readonly ICurrentUserContext _currentUser;
         private readonly Channel<TelemetryMessage> _telemetryChannel;
 
-        public string IntentName => "RESERVE_STOCK";
-        public IReadOnlyList<string> AllowedRoles => new[] { "Admin", "Sales" };
+        public string IntentName => "CREATE_ORDER";
+        public IReadOnlyList<string> AllowedRoles => new[] { "Admin", "Sales", "Viewer" };
 
-        public ReserveStockHandler(
+        public CreateOrderHandler(
             IOrderService orderService,
             ICurrentUserContext currentUser,
             Channel<TelemetryMessage> telemetryChannel)
@@ -27,14 +27,14 @@ namespace FlowSpeak.Api.Services.Intent
 
         public async Task<ActionResponse> HandleAsync(IntentRequest request)
         {
-            var searchTerm = request.Entity;
+            var productName = request.Entity;
 
-            if (string.IsNullOrWhiteSpace(searchTerm))
+            if (string.IsNullOrWhiteSpace(productName))
             {
                 return new ActionResponse
                 {
                     Success = false,
-                    Message = "No product name specified to reserve.",
+                    Message = "Please specify which product you'd like to order.",
                     Data = null
                 };
             }
@@ -48,31 +48,32 @@ namespace FlowSpeak.Api.Services.Intent
                 }
             }
 
-            // Resolve current user — null is safe; order is created with null RequestedByUserId.
+            // Resolve current user — null is safe; the order is still created,
+            // just with a null RequestedByUserId (legacy-compatible).
             var user = await _currentUser.GetCurrentUserAsync();
 
             try
             {
                 var order = await _orderService.CreateReservationOrderAsync(
-                    searchTerm, quantity, user?.ExternalId);
+                    productName, quantity, user?.ExternalId);
 
                 if (order == null)
                 {
                     return new ActionResponse
                     {
                         Success = false,
-                        Message = $"Could not locate a product matching '{searchTerm}' to reserve.",
+                        Message = $"Could not find '{productName}' in our inventory. Please check the product name and try again.",
                         Data = null
                     };
                 }
 
                 var firstItem = order.Items.FirstOrDefault();
-                var message = $"Order {order.OrderNumber} created. Reserved {quantity} units of {firstItem?.ProductName ?? searchTerm} (SKU: {firstItem?.ProductSKU}). Total: ${order.TotalAmount:F2}. Status: {order.Status}.";
+                var message = $"✓ Order {order.OrderNumber} created successfully! Reserved {quantity} unit(s) of {firstItem?.ProductName ?? productName}. Total: ${order.TotalAmount:F2}. Status: {order.Status}.";
 
                 _telemetryChannel.Writer.TryWrite(new TelemetryMessage
                 {
                     EventType = "ORDER_CREATED",
-                    Entity = firstItem?.ProductName ?? searchTerm,
+                    Entity = firstItem?.ProductName ?? productName,
                     Intent = IntentName,
                     Payload = message
                 });
@@ -84,11 +85,11 @@ namespace FlowSpeak.Api.Services.Intent
                     Data = new
                     {
                         orderNumber = order.OrderNumber,
-                        status = order.Status,
-                        totalAmount = order.TotalAmount,
                         productName = firstItem?.ProductName,
-                        productSKU = firstItem?.ProductSKU,
-                        quantity = quantity
+                        quantity = quantity,
+                        unitPrice = firstItem?.UnitPrice,
+                        totalAmount = order.TotalAmount,
+                        status = order.Status
                     }
                 };
             }
@@ -97,7 +98,7 @@ namespace FlowSpeak.Api.Services.Intent
                 return new ActionResponse
                 {
                     Success = false,
-                    Message = ex.Message,
+                    Message = $"Cannot complete order: {ex.Message}",
                     Data = null
                 };
             }
@@ -106,7 +107,7 @@ namespace FlowSpeak.Api.Services.Intent
                 return new ActionResponse
                 {
                     Success = false,
-                    Message = $"An error occurred while reserving stock: {ex.Message}",
+                    Message = $"An error occurred while creating the order: {ex.Message}",
                     Data = null
                 };
             }

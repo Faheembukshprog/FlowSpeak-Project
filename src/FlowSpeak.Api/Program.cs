@@ -131,7 +131,13 @@ builder.Services.AddCors(options =>
         }
 
         var allowedOrigins = string.IsNullOrWhiteSpace(frontendUrl)
-            ? new[] { "http://localhost:5000", "https://localhost:5000", "http://localhost:5173", "https://localhost:5173" }
+            ? new[] { 
+                "http://localhost:5000", "https://localhost:5000", 
+                "http://localhost:5001", "https://localhost:5001", 
+                "http://localhost:5002", "https://localhost:5002", 
+                "http://localhost:5003", "https://localhost:5003", 
+                "http://localhost:5173", "https://localhost:5173" 
+            }
             : new[] { frontendUrl };
 
         policy.WithOrigins(allowedOrigins)
@@ -179,16 +185,22 @@ builder.Services.AddAuthorization();
 
 // ── Service Registrations ─────────────────────────────────────────────────────
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<FlowSpeak.Api.Services.IProductService,       FlowSpeak.Api.Services.ProductService>();
-builder.Services.AddScoped<FlowSpeak.Api.Services.IOrderService,         FlowSpeak.Api.Services.OrderService>();
+builder.Services.AddScoped<FlowSpeak.Api.Services.IProductService,          FlowSpeak.Api.Services.ProductService>();
+builder.Services.AddScoped<FlowSpeak.Api.Services.IOrderService,            FlowSpeak.Api.Services.OrderService>();
+builder.Services.AddScoped<FlowSpeak.Api.Services.ICurrentUserContext,      FlowSpeak.Api.Services.CurrentUserContext>();
 builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentDispatcher, FlowSpeak.Api.Services.Intent.IntentDispatcher>();
-builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler, FlowSpeak.Api.Services.Intent.CheckStockHandler>();
-builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler, FlowSpeak.Api.Services.Intent.ReserveStockHandler>();
-builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler, FlowSpeak.Api.Services.Intent.GetOrderStatusHandler>();
-builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler, FlowSpeak.Api.Services.Intent.CancelOrderHandler>();
-builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler, FlowSpeak.Api.Services.Intent.UpdateStockHandler>();
-builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler, FlowSpeak.Api.Services.Intent.AddProductHandler>();
-builder.Services.AddScoped<FlowSpeak.Api.Services.IProductLookupService, FlowSpeak.Api.Services.ProductLookupService>();
+builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler,    FlowSpeak.Api.Services.Intent.CheckStockHandler>();
+builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler,    FlowSpeak.Api.Services.Intent.ReserveStockHandler>();
+builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler,    FlowSpeak.Api.Services.Intent.GetOrderStatusHandler>();
+builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler,    FlowSpeak.Api.Services.Intent.CancelOrderHandler>();
+builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler,    FlowSpeak.Api.Services.Intent.UpdateStockHandler>();
+builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler,    FlowSpeak.Api.Services.Intent.AddProductHandler>();
+builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler,    FlowSpeak.Api.Services.Intent.CreateOrderHandler>();
+builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler,    FlowSpeak.Api.Services.Intent.ListMyOrdersHandler>();
+builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler,    FlowSpeak.Api.Services.Intent.ListAllOrdersHandler>();
+builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler,    FlowSpeak.Api.Services.Intent.SearchProductsHandler>();
+builder.Services.AddScoped<FlowSpeak.Api.Services.Intent.IIntentHandler,    FlowSpeak.Api.Services.Intent.RequestQuoteHandler>();
+builder.Services.AddScoped<FlowSpeak.Api.Services.IProductLookupService,    FlowSpeak.Api.Services.ProductLookupService>();
 builder.Services.AddHttpClient<FlowSpeak.Api.Services.AI.IAIProvider, FlowSpeak.Api.Services.AI.LlmAIProvider>(
     client => { client.Timeout = TimeSpan.FromSeconds(10); });
 builder.Services.AddSingleton<FlowSpeak.Api.Services.Auth.IJwtService,   FlowSpeak.Api.Services.Auth.JwtService>();

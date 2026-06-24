@@ -17,7 +17,7 @@ namespace FlowSpeak.Api.Services
             _productLookupService = productLookupService;
         }
 
-        public async Task<Order?> CreateReservationOrderAsync(string searchTerm, int quantity)
+        public async Task<Order?> CreateReservationOrderAsync(string searchTerm, int quantity, Guid? requestedByUserId = null)
         {
             if (string.IsNullOrWhiteSpace(searchTerm) || quantity <= 0)
                 return null;
@@ -54,7 +54,8 @@ namespace FlowSpeak.Api.Services
                     OrderNumber = orderNumber,
                     Status = "PENDING",
                     TotalAmount = lineTotal,
-                    Notes = $"Reserved via FlowSpeak Command Center"
+                    Notes = $"Reserved via FlowSpeak Command Center",
+                    RequestedByUserId = requestedByUserId
                 };
 
                 var orderItem = new OrderItem

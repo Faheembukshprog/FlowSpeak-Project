@@ -1,1 +1,0 @@
-- [Backend rate limiting & health check](backend-hardening.md) — rate limiter uses built-in ASP.NET Core RateLimiting (no NuGet); AddDbContextCheck needs a separate package (omit it).

@@ -264,9 +264,9 @@ export default function AccessTerminal({ onAuthenticated }) {
             </div>
           </div>
 
-          <div className="min-h-[48px] mt-5 mb-3 px-1.5 flex items-center">
+          <div className="min-h-12 mt-5 mb-3 px-1.5 flex items-center">
             {error && (
-              <div className="w-full border border-rose-500/25 bg-rose-500/[0.04] px-3 py-2 font-mono text-[11px] leading-relaxed">
+              <div className="w-full border border-rose-500/25 bg-rose-500/4 px-3 py-2 font-mono text-[11px] leading-relaxed">
                 <p className="text-rose-500 tracking-wide">{error.code}</p>
                 {error.detail && (
                   <p className="text-rose-500/60 mt-1 text-[10px] normal-case tracking-normal">
@@ -275,8 +275,9 @@ export default function AccessTerminal({ onAuthenticated }) {
                 )}
               </div>
             )}
+
             {!error && notice && (
-              <div className="w-full border border-emerald-500/25 bg-emerald-500/[0.04] px-3 py-2 font-mono text-[11px] text-emerald-400">
+              <div className="w-full border border-emerald-500/25 bg-emerald-500/4 px-3 py-2 font-mono text-[11px] text-emerald-400">
                 {notice}
               </div>
             )}
@@ -286,11 +287,10 @@ export default function AccessTerminal({ onAuthenticated }) {
             <button
               type="submit"
               disabled={loading}
-              className={`flex-1 font-mono text-xs uppercase tracking-widest border text-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed py-3 px-4 transition-all duration-200 ${
-                btnHighlight
+              className={`flex-1 font-mono text-xs uppercase tracking-widest border text-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed py-3 px-4 transition-all duration-200 ${btnHighlight
                   ? 'border-emerald-500/70 bg-emerald-500/15 shadow-[0_0_14px_rgba(16,185,129,0.22)]'
                   : 'border-emerald-500/30 hover:bg-emerald-500/10'
-              }`}
+                }`}
             >
               {loading
                 ? 'PROCESSING...'

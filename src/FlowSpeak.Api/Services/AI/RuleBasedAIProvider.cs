@@ -16,11 +16,12 @@ namespace FlowSpeak.Api.Services.AI
     /// </summary>
     public class RuleBasedAIProvider : IAIProvider
     {
-        // Verb clusters mapped to intents
+        // Verb clusters mapped to intents (order matters: more specific first)
         private static readonly (string Intent, string[] Verbs)[] IntentRules = new[]
         {
+            ("SEARCH_PRODUCTS", new[] { "search products", "search for", "find products", "browse products", "list products", "show products" }),
             ("RESERVE_STOCK", new[] { "reserve", "book", "order", "lock", "hold", "set aside", "allocate", "grab", "secure" }),
-            ("CHECK_STOCK",   new[] { "check", "stock", "inventory", "available", "how many", "do we have", "look up", "find", "search", "show", "details", "info", "status", "quantity", "left" }),
+            ("CHECK_STOCK",   new[] { "check", "stock", "inventory", "available", "how many", "do we have", "look up", "find", "show", "details", "info", "status", "quantity", "left" }),
         };
 
         // Quantity word mapping for natural language numbers

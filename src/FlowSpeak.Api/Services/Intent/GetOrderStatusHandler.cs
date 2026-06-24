@@ -40,9 +40,10 @@ namespace FlowSpeak.Api.Services.Intent
 
             orderNumber = orderNumber.Trim();
 
-            // Find the order, including its items
+            // Find the order, including its items and requesting user
             var order = await _context.Orders
                 .Include(o => o.Items)
+                .Include(o => o.RequestedByUser)
                 .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber || o.ExternalId.ToString() == orderNumber);
 
             if (order == null)
@@ -67,7 +68,7 @@ namespace FlowSpeak.Api.Services.Intent
                     orderNumber = order.OrderNumber,
                     status = order.Status,
                     totalAmount = order.TotalAmount,
-                    requestedBy = order.RequestedBy,
+                    requestedBy = order.RequestedByUser?.Username ?? "(legacy / unknown)",
                     notes = order.Notes,
                     createdAt = order.CreatedAt,
                     items = order.Items.Select(i => new

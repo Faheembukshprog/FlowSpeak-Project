@@ -9,6 +9,6 @@ namespace FlowSpeak.Api.Services
         /// Returns the created Order with its items, or null if the product was not found.
         /// Throws InvalidOperationException if insufficient stock.
         /// </summary>
-        Task<Order?> CreateReservationOrderAsync(string searchTerm, int quantity);
+        Task<Order?> CreateReservationOrderAsync(string searchTerm, int quantity, Guid? requestedByUserId = null);
     }
 }

@@ -39,10 +39,10 @@ obj/
 *.sln.docstates
 *.suo
 *.userprefs
-*.DS_Store
 .vs/
-.vscode/
 *.log
+
+# Database files
 *.sqlite
 *.db
 *.db-shm
@@ -58,12 +58,14 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+.npm/
+
+# Environment files
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-.npm/
 
 # Sensitive local app configuration
 appsettings.json
@@ -78,12 +80,14 @@ appsettings.*.json
 .idea/
 .agent/
 .cursor/
+.vscode/
 *.swp
 *~
 
-# TestSprite
-src/FlowSpeak.Api/testsprite_tests/
-testsprite_tests/tmp/
+# AI / Trae IDE / Agent related
+.agents/
+.context/
+.trae/
 
 # OS generated files
 .DS_Store
@@ -93,3 +97,10 @@ testsprite_tests/tmp/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Test files
+src/FlowSpeak.Api/testsprite_tests/
+testsprite_tests/tmp/
+
+# Seed script and temp data
+seed-test-data.ps1

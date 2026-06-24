@@ -26,10 +26,18 @@ namespace FlowSpeak.Api.Models
         public decimal TotalAmount { get; set; }
 
         /// <summary>
-        /// Optional: who placed this order (for future RBAC integration).
+        /// The ExternalId (Guid) of the AppUser who placed this order.
+        /// Stored as a Guid? FK so that deleting a user sets this to null
+        /// rather than cascade-deleting all their orders.
+        /// Null for any orders created before this feature was introduced.
         /// </summary>
-        [MaxLength(200)]
-        public string? RequestedBy { get; set; }
+        public Guid? RequestedByUserId { get; set; }
+
+        /// <summary>
+        /// Navigation property to the requesting user.
+        /// May be null if the user has since been deleted or the order predates this column.
+        /// </summary>
+        public virtual AppUser? RequestedByUser { get; set; }
 
         /// <summary>
         /// Optional notes or context from the NLP interpretation.

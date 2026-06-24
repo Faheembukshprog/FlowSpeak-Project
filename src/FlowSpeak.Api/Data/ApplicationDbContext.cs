@@ -50,6 +50,18 @@ namespace FlowSpeak.Api.Data
             modelBuilder.Entity<Order>().HasIndex(o => o.ExternalId).IsUnique();
             modelBuilder.Entity<Order>().HasIndex(o => o.OrderNumber).IsUnique();
             modelBuilder.Entity<Order>().HasIndex(o => o.Status);
+            modelBuilder.Entity<Order>().HasIndex(o => o.RequestedByUserId);
+
+            // Order → AppUser FK: uses AppUser.ExternalId as the principal key.
+            // OnDelete SetNull: removing a user sets RequestedByUserId to null —
+            // their historical orders are preserved in the global list.
+            modelBuilder.Entity<Order>()
+                .HasOne(o => o.RequestedByUser)
+                .WithMany()
+                .HasForeignKey(o => o.RequestedByUserId)
+                .HasPrincipalKey(u => u.ExternalId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             modelBuilder.Entity<OrderItem>().HasIndex(oi => oi.ExternalId).IsUnique();
 
             // AiCommandLog — append-only audit table
